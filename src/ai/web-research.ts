@@ -23,7 +23,8 @@
  */
 
 import * as cheerio from 'cheerio';
-import { ai, DEFAULT_MODEL } from '@/ai/providers';
+import { ai, DEFAULT_MODEL, supportsWebSearch } from '@/ai/providers';
+import { withRetry } from '@/ai/retry';
 
 export interface ResearchSource {
   title: string;
@@ -227,9 +228,25 @@ const MAX_SEARCH_ATTEMPTS = 3;
 export async function groundedSearch(prompt: string): Promise<GroundedResearch> {
   let groundingError: string | undefined;
 
+  // Only Gemini can run Search as a tool. On any other provider, attempting it
+  // would either error or - worse - silently return plain model recall that the
+  // rest of the pipeline would treat as researched fact. Refusing up front
+  // keeps the "grounded" flag honest, and donor research still works from the
+  // pages fetched directly off the funder's own site.
+  if (!supportsWebSearch) {
+    return {
+      dossier: '',
+      sources: [],
+      grounded: false,
+      groundingError:
+        'The configured AI provider cannot search the web, so this run used only pages fetched directly from the funder\'s site.',
+    };
+  }
+
   for (let attempt = 1; attempt <= MAX_SEARCH_ATTEMPTS; attempt++) {
     try {
-      const response = await ai.generate({
+      const response = await withRetry('groundedSearch', () =>
+        ai.generate({
         model: DEFAULT_MODEL,
         prompt,
         config: {
@@ -239,7 +256,8 @@ export async function groundedSearch(prompt: string): Promise<GroundedResearch> 
           googleSearch: {},
           temperature: 0.2,
         },
-      });
+      }),
+      );
 
       if (!searchWasUsed(response)) {
         // The call succeeded but the tool never ran, so the answer is recall.

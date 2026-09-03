@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { refreshDonor } from '@/lib/donor-refresh';
-import { aiConfigured } from '@/ai/providers';
+import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
 
 // Vercel caps cron invocations; refreshing the stalest few per run and letting
 // the schedule work through the list beats one long job that times out.
@@ -32,7 +32,7 @@ async function handle(request: Request) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
   if (!aiConfigured) {
-    return NextResponse.json({ error: 'GEMINI_API_KEY is not set.' }, { status: 503 });
+    return NextResponse.json({ error: `${AI_KEY_VAR} is not set.` }, { status: 503 });
   }
 
   const cutoff = new Date(Date.now() - STALE_AFTER_DAYS * 86_400_000);

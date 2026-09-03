@@ -13,6 +13,7 @@
 
 import { z } from 'genkit';
 import { ai, WRITING_MODEL } from '@/ai/providers';
+import { withRetry } from '@/ai/retry';
 
 export const OnePagerSchema = z.object({
   organizationName: z.string(),
@@ -36,7 +37,8 @@ export const generateOnePager = ai.defineFlow(
     outputSchema: OnePagerSchema,
   },
   async ({ orgName, profile }) => {
-    const { output } = await ai.generate({
+    const { output } = await withRetry('generateOnePager', () =>
+      ai.generate({
       model: WRITING_MODEL,
       system: `You compile a one-page non-profit summary for funders, in the format local and regional grant-givers expect.
 
@@ -49,7 +51,8 @@ Rules:
       prompt: `ORGANIZATION: ${orgName}\n\nPROFILE:\n${profile}`,
       output: { schema: OnePagerSchema },
       config: { temperature: 0.3 },
-    });
+    }),
+    );
 
     if (!output) throw new Error('The one-pager generator returned no output.');
     return output;

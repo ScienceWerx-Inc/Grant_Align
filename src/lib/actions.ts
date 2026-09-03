@@ -8,8 +8,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { z } from 'zod';
 import { prisma } from '@/lib/db';
+import { acceptResearchRun } from '@/lib/donor-refresh';
 import type { ComplianceStatus, ComplianceType, OrgKind } from '@prisma/client';
 
 function str(form: FormData, key: string): string | null {
@@ -205,43 +205,8 @@ export async function addComplianceItem(orgId: string, form: FormData) {
 
 /** Accepts a research run's proposed criteria into the live donor profile. */
 export async function acceptResearch(runId: string) {
-  const run = await prisma.researchRun.findUniqueOrThrow({ where: { id: runId } });
-  const criteria = run.extracted as Record<string, any> | null;
-  if (!criteria) throw new Error('This run produced no criteria to accept.');
-
-  const parsed = z
-    .object({
-      fundingFocus: z.array(z.string()).optional(),
-      excludedSectors: z.array(z.string()).optional(),
-      populationsServed: z.array(z.string()).optional(),
-      geographies: z.array(z.string()).optional(),
-      grantMin: z.number().optional(),
-      grantMax: z.number().optional(),
-      cycleNotes: z.string().optional(),
-      nextDeadline: z.string().optional(),
-      applicationPortal: z.string().optional(),
-      applicationUrl: z.string().optional(),
-      requiresLoi: z.boolean().optional(),
-      requires990: z.boolean().optional(),
-      requiresGoodStanding: z.boolean().optional(),
-      givingNotes: z.string().optional(),
-    })
-    .parse(criteria);
-
-  const deadline = parsed.nextDeadline ? new Date(parsed.nextDeadline) : null;
-  const data = {
-    ...parsed,
-    nextDeadline: deadline && !Number.isNaN(deadline.getTime()) ? deadline : null,
-    lastResearchedAt: run.finishedAt ?? new Date(),
-    researchGrounded: run.grounded,
-  };
-
-  await prisma.donorProfile.upsert({
-    where: { orgId: run.orgId },
-    create: { orgId: run.orgId, ...data },
-    update: data,
-  });
-  revalidatePath(`/donors/${run.orgId}`);
+  const orgId = await acceptResearchRun(runId);
+  revalidatePath(`/donors/${orgId}`);
 }
 
 /** Writes interviewer-extracted fields onto the profile, without clobbering. */

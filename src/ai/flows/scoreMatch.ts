@@ -18,6 +18,7 @@
 
 import { z } from 'genkit';
 import { ai, WRITING_MODEL } from '@/ai/providers';
+import { withRetry } from '@/ai/retry';
 
 export const DIMENSIONS = [
   { key: 'mission', label: 'Mission & program fit', weight: 30 },
@@ -83,7 +84,8 @@ export const scoreMatch = ai.defineFlow(
     outputSchema: MatchResultSchema,
   },
   async ({ seekerName, seekerProfile, donorName, donorProfile }) => {
-    const { output } = await ai.generate({
+    const { output } = await withRetry(`scoreMatch ${seekerName} -> ${donorName}`, () =>
+      ai.generate({
       model: WRITING_MODEL,
       system: `You evaluate whether a specific non-profit should spend its time applying to a specific funder. Your reader is a small non-profit with very few grant-writing hours, so a false "apply" costs them more than a false "skip".
 
@@ -107,7 +109,8 @@ ${donorProfile}
 Evaluate this pairing.`,
       output: { schema: MatchResultSchema },
       config: { temperature: 0.2 },
-    });
+    }),
+    );
 
     if (!output) throw new Error('The matching engine returned no output.');
     return output;

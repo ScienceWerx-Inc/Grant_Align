@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { generateOnePager } from '@/ai/flows/onePager';
 import { renderSeekerProfile, type SeekerRecord } from '@/lib/profile-text';
-import { aiConfigured } from '@/ai/providers';
+import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
 
 export const maxDuration = 90;
 
 export async function POST(request: Request) {
   if (!aiConfigured) {
     return NextResponse.json(
-      { error: 'GEMINI_API_KEY is not set, so the 1-pager generator is unavailable.' },
+      { error: `${AI_KEY_VAR} is not set, so the 1-pager generator is unavailable.` },
       { status: 503 },
     );
   }

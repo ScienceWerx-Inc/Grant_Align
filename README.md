@@ -10,8 +10,7 @@ explicitly does not do — rather than on mission-statement language.
 - **Next.js 15** (App Router, server actions) + TypeScript + Tailwind
 - **Postgres via Prisma** — plain `DATABASE_URL`, so Vercel Postgres and
   Supabase are interchangeable
-- **Genkit + Google Gemini** for the interviewers, research extraction, match
-  scoring and the 1-pager
+- **Genkit**, running on **Google Gemini** or **Mistral** (see below)
 - **Vercel Cron** for the scheduled donor research job
 
 ## Running locally
@@ -39,6 +38,32 @@ npm run demo      # research live donor criteria, then score every pair
 `npm run genkit:dev` opens the Genkit developer UI against the same flows, which
 is the fastest way to iterate on interviewer and scoring prompts.
 
+### AI provider
+
+`AI_PROVIDER` selects between `gemini` (default) and `mistral`. Mistral is
+reached through the official OpenAI-compatibility plugin, so any other
+OpenAI-compatible endpoint (Groq, OpenRouter, Together, a local vLLM) works by
+changing `baseURL` in `src/ai/providers.ts` and nothing else.
+
+**The providers are not equivalent, and the difference is web search.** Gemini
+can run Google Search as a tool, which is how donor research reaches the
+aggregators in section 4 - Candid/GuideStar, Foundant portals, Foundation
+Directory listings. Mistral's chat completions cannot search. On Mistral, donor
+research still works, but only from pages fetched directly off the funder's own
+site, and every run says so in its record rather than quietly presenting
+unsearched output as researched.
+
+That matters unevenly across the seed list: it is fine for a foundation with a
+readable public site, and close to useless for one whose site blocks scrapers
+or renders entirely in JavaScript. Prefer Gemini when quota is available.
+
+A note on Gemini quota, since it is easy to lose an hour here: a perfectly valid
+API key on a Google Cloud project with no billing and no free-tier grant returns
+`quota_limit_value: 0` on *every* model in *every* region, with a 429 whose text
+says "Too Many Requests". Check
+`console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas`
+and filter for "generate content" before assuming the key is wrong.
+
 ### Connection pooling
 
 `pgagroal/` holds a working pool config, started with
@@ -65,10 +90,17 @@ needing a persistent host, and Vercel functions are ephemeral.
 1. **Supabase**: create the project, then take both strings from
    *Project Settings > Database > Connection string*:
 
-   | Variable | Which string | Suffix |
-   | --- | --- | --- |
-   | `DATABASE_URL` | Transaction pooler, port **6543** | `?pgbouncer=true&connection_limit=1` |
-   | `DIRECT_URL` | Direct connection, port **5432** | none |
+   | Variable | Which tab | Port | Suffix |
+   | --- | --- | --- | --- |
+   | `DATABASE_URL` | Transaction pooler | **6543** | `?pgbouncer=true&connection_limit=1` |
+   | `DIRECT_URL` | Session pooler | **5432** | none |
+
+   **Use the Session pooler, not "Direct connection", for `DIRECT_URL`.** The
+   `db.<ref>.supabase.co` host publishes an AAAA record and no A record, so it
+   is reachable over IPv6 only — and Vercel's functions are IPv4-only, as are
+   most local machines. It fails to connect from both, with a DNS error that
+   reads like a typo. The pooler hostnames are dual-stack. Session mode holds a
+   connection for the whole session, so migrations work over it.
 
    Both suffixes matter. `pgbouncer=true` stops Prisma using prepared
    statements, which a transaction-mode pooler cannot hold between statements.
@@ -76,14 +108,18 @@ needing a persistent host, and Vercel functions are ephemeral.
    without it Prisma sizes its pool at `num_cpus*2+1` *per instance* and
    exhausts the pooler under any real traffic.
 
+   Note the username in both strings is `postgres.<project-ref>`, not plain
+   `postgres`.
+
 2. **Schema and seed**, run once from your machine with the production values:
 
    ```bash
-   DATABASE_URL=<direct url> DIRECT_URL=<direct url> npx prisma db push
-   DATABASE_URL=<pooled url> npm run db:seed
+   DATABASE_URL=<session pooler url> DIRECT_URL=<session pooler url> npx prisma db push
+   DATABASE_URL=<transaction pooler url> npm run db:seed
    ```
 
-   Use the direct URL for `db push` — migrations cannot run over the pooler.
+   `db push` goes over the session pooler — migrations cannot run over a
+   transaction-mode pooler, which is what port 6543 is.
 
 3. **Vercel**: import the repo (build command is already
    `prisma generate && next build`) and set `DATABASE_URL`, `DIRECT_URL`,
@@ -124,6 +160,33 @@ map cleanly onto Firestore arrays, and `Match.dimensions` is already JSON.
 | §2.3 Donor AI interviewer | Same flow as the seeker interviewer, different agenda |
 | §3 Matching engine | `src/ai/flows/scoreMatch.ts`, `src/lib/matching.ts`, `/matches` |
 
+## Structured output across providers
+
+Every flow asks the model for structured data, and the schemas handed to the
+model leave the extracted fields **untyped**, coercing the shapes afterwards in
+`src/ai/coerce.ts`. That looks backwards, so it is worth saying why.
+
+Genkit validates the model's raw output against the JSON Schema derived from the
+Zod type *before* parsing it. A strict `z.string()` therefore rejects the whole
+turn when a model answers a "who do you serve" field with a nested object of
+sub-answers - a reasonable reading of the instruction, and one smaller models
+make constantly. `z.preprocess` cannot rescue it either: the preprocessed field
+still publishes `"type": "string"`, so validation fails and the preprocessor
+never runs. Leaving the field untyped in the schema is the only layer where this
+can be fixed.
+
+The cost of getting this wrong is not cosmetic. A failed interview turn loses an
+answer the user already typed and asks them the same question twice; a failed
+research pass costs two model calls plus a set of live page fetches and leaves a
+funder with no criteria at all.
+
+One trap worth knowing about, since it produced silently wrong data before it
+was caught: the coercion splits a comma-joined string into tags, but must NOT
+split the elements of an array the model already returned correctly. Doing so
+turned `"Frederick County, MD"` into two separate geographies and an exclusion
+of `"grant requests under $2,500"` into `"grant requests under $2"` plus a stray
+`"500"`.
+
 ## Design decisions worth knowing
 
 **Interviews chase negative scope.** Both interviewers are built to push on what
@@ -152,8 +215,13 @@ parallel fan-out over a full donor list fails most of its calls.
 ## Known limitations
 
 - **Some funder sites cannot be fetched.** `cffredco.org` refuses our requests
-  outright, and JS-only sites reduce to an empty shell. The Search-grounded pass
-  is the fallback for those, which is why both run on every refresh.
+  outright (the connection fails, not a 403), and JS-only sites reduce to an
+  empty shell. On Gemini the Search-grounded pass covers those, which is why
+  both run on every refresh; on Mistral there is no fallback and the funder
+  simply comes back with no criteria, labelled as such.
+- **Not every donor researches successfully, by design.** A run that finds
+  nothing records why and proposes nothing, rather than inventing plausible
+  criteria. Expect roughly the funders with readable public sites to work.
 - **The §4 paid databases are reached only indirectly.** Foundant, Candid /
   GuideStar and the Foundation Directory are hit through Google Search
   grounding, not through accounts or APIs. Direct integration needs
@@ -163,9 +231,8 @@ parallel fan-out over a full donor list fails most of its calls.
   data goes in.
 - **No file storage.** Compliance items hold a link to a document, not the
   document.
-- **The AI flows have not been run against a live key.** `npm run smoke`
-  exercises all four in one pass and is the first thing to run once a key is in
-  `.env`.
+- **On Mistral, donor research cannot search the web** - see the AI provider
+  note above. It reads the funder's own site and nothing else.
 - **No pooling on macOS.** See the connection-pooling note above.
 
 ## Open questions for the grants expert (§5)

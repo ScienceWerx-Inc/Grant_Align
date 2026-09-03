@@ -14,16 +14,18 @@
     "genkit:dev": "genkit start -- tsx --watch src/ai/dev.ts",
     "postinstall": "prisma generate",
     "smoke": "tsx --env-file-if-exists=.env scripts/smoke.ts",
-    "demo": "tsx --env-file-if-exists=.env scripts/demo.ts"
+    "demo": "tsx --env-file-if-exists=.env scripts/demo.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "prisma": {
     "seed": "tsx --env-file-if-exists=.env prisma/seed.ts"
   },
   "dependencies": {
-    "@genkit-ai/google-genai": "1.40.1",
+    "@genkit-ai/compat-oai": "^1.42.0",
+    "@genkit-ai/google-genai": "^1.42.0",
     "@prisma/client": "^6.1.0",
     "cheerio": "^1.0.0",
-    "genkit": "1.40.1",
+    "genkit": "^1.42.0",
     "next": "15.3.8",
     "react": "18.3.1",
     "react-dom": "18.3.1",

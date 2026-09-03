@@ -14,7 +14,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { aiConfigured } from '@/ai/providers';
+import { aiConfigured, AI_KEY_VAR, AI_PROVIDER } from '@/ai/providers';
 import { interviewTurn, type InterviewMessage } from '@/ai/flows/interviewer';
 import { researchDonor } from '@/ai/flows/researchDonor';
 import { scoreMatch, reconcileVerdict, weightedScore } from '@/ai/flows/scoreMatch';
@@ -79,11 +79,11 @@ async function testInterview() {
     orgName: org.name,
     context: renderSeekerProfile(org as SeekerRecord),
     messages,
-    extracted: opening.seeker ?? {},
+    extracted: opening.extracted ?? {},
   });
   console.log(`Q2: ${followUp.reply}`);
   console.log(`covered: ${followUp.coverage.join(', ') || '(none yet)'} | done: ${followUp.done}`);
-  console.log(`extracted: ${JSON.stringify(followUp.seeker ?? {})}`);
+  console.log(`extracted: ${JSON.stringify(followUp.extracted ?? {})}`);
 
   if (followUp.done) console.warn('⚠  Declared done after one vague answer — agenda is too easy to satisfy.');
   console.log('✓ interviewer responded with structured output');
@@ -182,7 +182,7 @@ const TESTS: Record<string, () => Promise<void>> = {
 
 async function main() {
   if (!aiConfigured) {
-    console.error('GEMINI_API_KEY is not set. Add it to .env and re-run.');
+    console.error(`${AI_KEY_VAR} is not set (AI_PROVIDER=${AI_PROVIDER}). Add it to .env and re-run.`);
     process.exit(1);
   }
 

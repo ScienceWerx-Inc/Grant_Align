@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { runMatches } from '@/lib/matching';
-import { aiConfigured } from '@/ai/providers';
+import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
 
 export const maxDuration = 300;
 
 export async function POST(request: Request) {
   if (!aiConfigured) {
     return NextResponse.json(
-      { error: 'GEMINI_API_KEY is not set, so the matching engine is unavailable.' },
+      { error: `${AI_KEY_VAR} is not set, so the matching engine is unavailable.` },
       { status: 503 },
     );
   }

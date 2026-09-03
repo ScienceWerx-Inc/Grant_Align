@@ -18,6 +18,8 @@
 
 import { z } from 'genkit';
 import { ai, DEFAULT_MODEL } from '@/ai/providers';
+import { lenientSchema, normalize, toTags, type FieldSpecs } from '@/ai/coerce';
+import { withRetry } from '@/ai/retry';
 
 export const InterviewMessageSchema = z.object({
   role: z.enum(['assistant', 'user']),
@@ -26,38 +28,64 @@ export const InterviewMessageSchema = z.object({
 });
 export type InterviewMessage = z.infer<typeof InterviewMessageSchema>;
 
-const SeekerExtractionSchema = z.object({
-  servesWho: z.string().optional().describe('Who the non-profit really serves, in concrete terms: ages, circumstances, referral routes, roughly how many people a year.'),
-  doesWhat: z.string().optional().describe('What it really does day to day — the actual activities, not the mission statement.'),
-  doesNotDo: z.string().optional().describe('Services and activities it explicitly does NOT provide, including ones people commonly assume it does.'),
-  doesNotServe: z.string().optional().describe('Who falls outside its scope, and any eligibility limits it enforces.'),
-  populations: z.array(z.string()).optional().describe('Short population tags, e.g. "unhoused adults", "K-12 students".'),
-  serviceAreas: z.array(z.string()).optional().describe('Geographies served, e.g. "Frederick County, MD", "City of Frederick".'),
-  programAreas: z.array(z.string()).optional().describe('Program/sector tags, e.g. "food security", "workforce development".'),
-  outcomes: z.string().optional().describe('Outcomes or numbers the organization can evidence.'),
-});
+const SEEKER_FIELDS: FieldSpecs = {
+  servesWho: { kind: 'prose', description: 'Who the non-profit really serves, in concrete terms: ages, circumstances, referral routes, roughly how many people a year.' },
+  doesWhat: { kind: 'prose', description: 'What it really does day to day - the actual activities, not the mission statement.' },
+  doesNotDo: { kind: 'prose', description: 'Services and activities it explicitly does NOT provide, including ones people commonly assume it does.' },
+  doesNotServe: { kind: 'prose', description: 'Who falls outside its scope, and any eligibility limits it enforces.' },
+  populations: { kind: 'tags', description: 'Populations served, e.g. "unhoused adults", "K-12 students".' },
+  serviceAreas: { kind: 'tags', description: 'Geographies served, e.g. "Frederick County, MD", "City of Frederick".' },
+  programAreas: { kind: 'tags', description: 'Program/sector areas, e.g. "food security", "workforce development".' },
+  outcomes: { kind: 'prose', description: 'Outcomes or numbers the organization can evidence.' },
+};
 
-const DonorExtractionSchema = z.object({
-  fundingFocus: z.array(z.string()).optional().describe('Program areas this funder supports.'),
-  excludedSectors: z.array(z.string()).optional().describe('What it will NOT fund — sectors, request types, organization types.'),
-  populationsServed: z.array(z.string()).optional().describe('Populations it prioritizes.'),
-  geographies: z.array(z.string()).optional().describe('Geographic footprint of its giving.'),
-  grantMin: z.number().optional().describe('Typical smallest award, USD.'),
-  grantMax: z.number().optional().describe('Typical largest award, USD.'),
-  cycleNotes: z.string().optional().describe('Cycle timing in plain words: deadlines, rounds, rolling.'),
-  requiresLoi: z.boolean().optional().describe('True if a letter of intent precedes the full application.'),
-  givingNotes: z.string().optional().describe('Nuance a published guideline would not say: what actually persuades this funder, common reasons they decline.'),
-});
+const DONOR_FIELDS: FieldSpecs = {
+  fundingFocus: { kind: 'tags', description: 'Program areas this funder supports.' },
+  excludedSectors: { kind: 'tags', description: 'What it will NOT fund - sectors, request types, organization types.' },
+  populationsServed: { kind: 'tags', description: 'Populations it prioritizes.' },
+  geographies: { kind: 'tags', description: 'Geographic footprint of its giving.' },
+  grantMin: { kind: 'count', description: 'Typical smallest award in USD.' },
+  grantMax: { kind: 'count', description: 'Typical largest award in USD.' },
+  cycleNotes: { kind: 'prose', description: 'Cycle timing in plain words: deadlines, rounds, rolling.' },
+  requiresLoi: { kind: 'bool', description: 'Whether a letter of intent precedes the full application.' },
+  givingNotes: { kind: 'prose', description: 'Nuance a published guideline would not say: what actually persuades this funder, common reasons they decline.' },
+};
 
-export const InterviewTurnOutputSchema = z.object({
-  reply: z.string().describe('What the interviewer says next: a brief acknowledgement of the answer, then ONE question.'),
-  seeker: SeekerExtractionSchema.optional(),
-  donor: DonorExtractionSchema.optional(),
-  coverage: z.array(z.string()).describe('Agenda topics considered adequately covered so far.'),
-  done: z.boolean().describe('True only when every required topic has a substantive answer.'),
-  summary: z.string().optional().describe('Written only when done: a 3-5 sentence operational summary.'),
-});
-export type InterviewTurnOutput = z.infer<typeof InterviewTurnOutputSchema>;
+/**
+ * The output schema is built per role rather than offering both a `seeker` and
+ * a `donor` branch on one object.
+ *
+ * With both branches present and optional, a model interviewing a non-profit
+ * would sometimes fill in the donor fields instead - they are visible in the
+ * schema, so they look like fair game - and the turn would fail validation on a
+ * field the conversation was never about. Handing the model only the fields
+ * that belong to this side of the platform removes the ambiguity entirely, and
+ * makes the schema roughly half the size, which matters for smaller models.
+ */
+function fieldsFor(role: 'SEEKER' | 'DONOR'): FieldSpecs {
+  return role === 'SEEKER' ? SEEKER_FIELDS : DONOR_FIELDS;
+}
+
+function turnSchema(role: 'SEEKER' | 'DONOR') {
+  return z.object({
+    reply: z
+      .string()
+      .describe('What the interviewer says next: a brief acknowledgement of the answer, then ONE question.'),
+    extracted: lenientSchema(fieldsFor(role))
+      .describe('Everything established so far, carried forward and refined. Never blank a field already filled.'),
+    coverage: z.any().optional().describe('Agenda topics adequately covered so far, as an array of short strings.'),
+    done: z.boolean().describe('True only when every required topic has a substantive answer.'),
+    summary: z.string().optional().describe('Written only when done: a 3-5 sentence operational summary.'),
+  });
+}
+
+export interface InterviewTurnOutput {
+  reply: string;
+  extracted: Record<string, unknown>;
+  coverage: string[];
+  done: boolean;
+  summary?: string;
+}
 
 const SEEKER_AGENDA = `
 1. serves-who — who they really serve. Push for specifics: ages, circumstances, how people arrive, rough annual numbers.
@@ -121,10 +149,12 @@ export const interviewTurn = ai.defineFlow(
       messages: z.array(InterviewMessageSchema),
       extracted: z.record(z.any()).default({}),
     }),
-    outputSchema: InterviewTurnOutputSchema,
+    outputSchema: z.any(),
   },
-  async ({ role, orgName, context, messages, extracted }) => {
-    const { output } = await ai.generate({
+  async ({ role, orgName, context, messages, extracted }): Promise<InterviewTurnOutput> => {
+    const schema = turnSchema(role);
+    const { output } = await withRetry('interviewTurn', () =>
+      ai.generate({
       model: DEFAULT_MODEL,
       system: systemPrompt(role, orgName, context),
       prompt: `TRANSCRIPT SO FAR:
@@ -134,11 +164,19 @@ FIELDS EXTRACTED SO FAR (carry these forward, refine them, do not drop them):
 ${JSON.stringify(extracted, null, 2)}
 
 Produce the next interviewer turn.`,
-      output: { schema: InterviewTurnOutputSchema },
+      output: { schema },
       config: { temperature: 0.6 },
-    });
+    }),
+    );
 
     if (!output) throw new Error('The interviewer returned no output.');
-    return output;
+
+    return {
+      reply: output.reply,
+      extracted: normalize(fieldsFor(role), output.extracted),
+      coverage: toTags(output.coverage),
+      done: Boolean(output.done),
+      summary: output.summary,
+    };
   },
 );

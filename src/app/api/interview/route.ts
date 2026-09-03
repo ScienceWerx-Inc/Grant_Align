@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { interviewTurn, type InterviewMessage } from '@/ai/flows/interviewer';
 import { applyInterviewExtraction } from '@/lib/actions';
 import { renderDonorProfile, renderSeekerProfile, type DonorRecord, type SeekerRecord } from '@/lib/profile-text';
-import { aiConfigured } from '@/ai/providers';
+import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
 
 export const maxDuration = 60;
 
@@ -17,7 +17,7 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   if (!aiConfigured) {
     return NextResponse.json(
-      { error: 'GEMINI_API_KEY is not set, so the AI interviewer is unavailable.' },
+      { error: `${AI_KEY_VAR} is not set, so the AI interviewer is unavailable.` },
       { status: 503 },
     );
   }
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   messages.push({ role: 'assistant', content: turn.reply, at: new Date().toISOString() });
 
-  const extracted = (role === 'SEEKER' ? turn.seeker : turn.donor) ?? {};
+  const extracted = (turn.extracted ?? {}) as Record<string, unknown>;
   await applyInterviewExtraction(org.id, role, extracted, turn.done);
 
   await prisma.interviewSession.update({

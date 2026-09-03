@@ -21,9 +21,9 @@
  */
 
 import { prisma } from '@/lib/db';
-import { aiConfigured } from '@/ai/providers';
+import { aiConfigured, AI_KEY_VAR, AI_PROVIDER } from '@/ai/providers';
 import { refreshDonor } from '@/lib/donor-refresh';
-import { acceptResearch } from '@/lib/actions';
+import { acceptResearchRun } from '@/lib/donor-refresh';
 import { runMatches } from '@/lib/matching';
 
 const DEFAULT_DONOR_COUNT = 3;
@@ -34,7 +34,7 @@ function heading(text: string) {
 
 async function main() {
   if (!aiConfigured) {
-    console.error('GEMINI_API_KEY is not set. Add it to .env and re-run.');
+    console.error(`${AI_KEY_VAR} is not set (AI_PROVIDER=${AI_PROVIDER}). Add it to .env and re-run.`);
     process.exit(1);
   }
 
@@ -65,7 +65,7 @@ async function main() {
       continue;
     }
     try {
-      await acceptResearch(result.runId);
+      await acceptResearchRun(result.runId);
       accepted += 1;
       const profile = await prisma.donorProfile.findUnique({ where: { orgId: donor.id } });
       console.log(
@@ -79,7 +79,11 @@ async function main() {
 
   if (accepted === 0) {
     console.error('\nNo donor criteria could be established, so matching would score nothing.');
-    console.error('Check that Google Search grounding is enabled on the API key.');
+    console.error(
+      AI_PROVIDER === 'gemini'
+        ? 'Check that Google Search grounding is enabled on the API key.'
+        : 'On Mistral there is no web search, so research depends entirely on the funder\'s own site being fetchable. Try donors with a readable public site, or switch to AI_PROVIDER=gemini.',
+    );
     process.exit(1);
   }
 
