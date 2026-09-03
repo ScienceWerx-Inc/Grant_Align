@@ -10,11 +10,15 @@ interface Dimension {
 const DIM_LABEL = new Map<string, string>(DIMENSIONS.map(d => [d.key, d.label]));
 
 /**
- * A real evaluated match, shown on the landing page as the product's own proof.
+ * A real evaluated match, shown as the product's own proof.
  *
- * Deliberately live data rather than an illustration: this is a system whose
- * whole claim is that its verdicts are specific and checkable, so a mocked-up
- * example with invented numbers would undercut the pitch it is meant to make.
+ * Live data rather than an illustration: this is a system whose whole claim is
+ * that its verdicts are specific and checkable, so a mock-up with invented
+ * numbers would undercut the pitch it exists to make.
+ *
+ * Drawn in the reference's terms - hairline border, no fill, no shadow, and
+ * scores expressed as rules rather than coloured bars. The one score that is
+ * not full is the only place the eye needs to go.
  */
 export function SampleMatch({
   match,
@@ -25,47 +29,43 @@ export function SampleMatch({
   seeker: Organization;
   donor: Organization;
 }) {
-  // All six, not the top few. The strongest match tends to score 100 on its
-  // first four dimensions, and four full bars in a row read as placeholder
-  // artwork; the lower-scoring dimensions are what show a real evaluation.
   const dimensions = (match.dimensions as unknown as Dimension[]) ?? [];
 
   return (
-    <figure className="glass-strong w-full p-6 shadow-2xl shadow-black/40">
-      <figcaption className="mb-5 flex items-center justify-between gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/45">
-          A real evaluation
-        </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-apply-dark/15 px-3 py-1 text-xs font-semibold text-apply-dark ring-1 ring-apply-dark/30">
-          Apply <span className="tabular-nums opacity-80">{match.score}</span>
+    <figure className="hairline rounded-lg p-8">
+      <figcaption className="flex items-center justify-between gap-4">
+        <span className="meta">A real evaluation</span>
+        <span className="status-pill">
+          <span className="h-1.5 w-1.5 rounded-full bg-pulse-green" />
+          Apply · {match.score}
         </span>
       </figcaption>
 
-      <p className="text-[15px] font-medium leading-snug text-white">
+      <p className="mt-6 text-heading-xs text-chalk">
         {seeker.name}
-        <span className="mx-2 text-white/35">→</span>
+        <span className="mx-2.5 text-iron">→</span>
         {donor.name}
       </p>
-      <p className="mt-2 text-sm leading-relaxed text-white/55">{match.headline}</p>
+      <p className="mt-3 text-body text-smoke">{match.headline}</p>
 
-      <ul className="mt-6 space-y-3">
+      <dl className="mt-8 space-y-3.5">
         {dimensions.map(dimension => (
-          <li key={dimension.key}>
-            <div className="flex items-baseline justify-between gap-3 text-[11px]">
-              <span className="font-medium text-white/75">
+          <div key={dimension.key}>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-[13px] text-ash">
                 {DIM_LABEL.get(dimension.key) ?? dimension.key}
-              </span>
-              <span className="tabular-nums text-white/45">{dimension.score}</span>
+              </dt>
+              <dd className="font-mono text-[13px] tabular-nums text-smoke">{dimension.score}</dd>
             </div>
-            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
+            <div className="mt-2 h-px w-full bg-graphite">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-glow to-white/80"
+                className="h-px bg-chalk"
                 style={{ width: `${Math.max(0, Math.min(100, dimension.score))}%` }}
               />
             </div>
-          </li>
+          </div>
         ))}
-      </ul>
+      </dl>
     </figure>
   );
 }

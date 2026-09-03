@@ -38,9 +38,9 @@ export function LoginForm({ next }: { next?: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-8 space-y-4">
+    <form onSubmit={onSubmit} className="mt-10 space-y-6">
       <div>
-        <label className="mb-1 block text-xs font-medium text-white/60" htmlFor="email">Email</label>
+        <label className="meta mb-2 block" htmlFor="email">Email</label>
         <input
           id="email"
           type="email"
@@ -48,11 +48,11 @@ export function LoginForm({ next }: { next?: string }) {
           required
           value={email}
           onChange={e => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-white/12 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-glow/60 focus:ring-2 focus:ring-glow/20"
+          className="w-full rounded-lg border border-graphite bg-transparent px-4 py-3 text-body text-chalk outline-none transition placeholder:text-iron focus:border-iron"
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-white/60" htmlFor="password">Password</label>
+        <label className="meta mb-2 block" htmlFor="password">Password</label>
         <input
           id="password"
           type="password"
@@ -60,17 +60,15 @@ export function LoginForm({ next }: { next?: string }) {
           required
           value={password}
           onChange={e => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-white/12 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-glow/60 focus:ring-2 focus:ring-glow/20"
+          className="w-full rounded-lg border border-graphite bg-transparent px-4 py-3 text-body text-chalk outline-none transition placeholder:text-iron focus:border-iron"
         />
       </div>
 
       {error && (
-        <p className="rounded-lg border border-skip-dark/30 bg-skip-dark/10 px-3 py-2 text-xs text-skip-dark">
-          {error}
-        </p>
+        <p className="rounded border border-graphite px-4 py-3 text-[13px] text-ash">{error}</p>
       )}
 
-      <button type="submit" disabled={busy} className="pill-light w-full">
+      <button type="submit" disabled={busy} className="pill-white w-full">
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
     </form>

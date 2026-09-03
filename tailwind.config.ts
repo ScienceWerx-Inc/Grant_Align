@@ -4,9 +4,26 @@ export default {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-aeonik)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-input)', 'ui-monospace', 'monospace'],
+      },
+      /*
+       * The reference scale verbatim. Authority comes from size and negative
+       * tracking rather than weight - every heading here is 400.
+       */
       fontSize: {
-        // A display step above the default scale, for the hero only.
-        display: ['clamp(2.75rem, 6vw, 4.5rem)', { lineHeight: '1.03', letterSpacing: '-0.03em' }],
+        caption: ['13px', { lineHeight: '2.69' }],
+        body: ['16px', { lineHeight: '1.25' }],
+        'heading-xs': ['18px', { lineHeight: '1.31' }],
+        subheading: ['21px', { lineHeight: '0.95' }],
+        'heading-sm': ['23px', { lineHeight: '1.07' }],
+        heading: ['34px', { lineHeight: '1.03' }],
+        'heading-lg': ['44px', { lineHeight: '1.07', letterSpacing: '-0.31px' }],
+        display: ['clamp(2.5rem, 5.5vw, 63px)', { lineHeight: '1.05', letterSpacing: '-0.69px' }],
+      },
+      maxWidth: {
+        page: '1200px',
       },
       colors: {
         ink: '#12181f',
@@ -19,25 +36,26 @@ export default {
         skip: '#a33a3a',
 
         /*
-         * Landing-page palette. Scoped to its own names rather than a global
-         * dark mode: the application stays light on purpose, because it is a
-         * dense working tool where legibility beats atmosphere.
+         * Hyperstudio reference tokens (reference_ui.md).
          *
-         * Deep navy rather than black - this is a civic product for small
-         * non-profits and county foundations, and pure black reads as consumer
-         * fintech rather than considered.
+         * An editorial-tech system: near-black canvas, hairline borders doing
+         * all the structural work, and no fills beyond a single white pill.
+         * Scoped to the landing and auth pages - the application stays light,
+         * because a dense working tool needs different rules from a page whose
+         * job is to be read once.
          */
-        night: {
-          950: '#070b12',
-          900: '#0b1120',
-          800: '#111a2e',
-          700: '#1b273f',
-        },
-        glow: '#4d9fd6',
-        /* Verdict colors, lifted for contrast against a dark ground. */
-        'apply-dark': '#4ade9f',
-        'maybe-dark': '#f0c05a',
-        'skip-dark': '#f08a8a',
+        obsidian: '#101010',
+        carbon: '#080808',
+        chalk: '#f3f3f3',
+        smoke: '#9c9c9c',
+        ash: '#c1c1c1',
+        graphite: '#212121',
+        iron: '#474747',
+        /* Icon strokes only - never text, never a background. */
+        'compass-gold': '#6f6759',
+        'card-slate': '#3b3d45',
+        /* Live/active status dots only. */
+        'pulse-green': '#98ff38',
       },
     },
   },

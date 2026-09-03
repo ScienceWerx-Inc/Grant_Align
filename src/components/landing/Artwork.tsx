@@ -1,166 +1,126 @@
 /**
- * The landing page's artwork: the matching problem itself, drawn.
+ * The landing page's hero graphic: the matching problem, drawn as a dot field.
  *
- * A generic orb or gradient blob would say nothing about this product. What
- * this system actually does is weigh many possible pairings and keep very few,
- * so the picture is exactly that: non-profits on the left, funders on the
- * right, and every plausible pairing drawn between them - most of them faint
- * and severed, a handful worth a look, two that connect.
+ * The reference system permits essentially one kind of imagery - a dot-matrix
+ * built from density rather than fill, with the occasional gold mark to show
+ * the way. That constraint suits this product exactly. Non-profits on the
+ * left, funders on the right, every plausible pairing drawn between them: most
+ * of them hairline and severed, two of them completed and marked in gold.
  *
- * The composition carries the argument the copy makes. The eye lands on the
- * two bright threads because they are the only ones that finish, which is the
- * point: the value is in what gets ruled out.
+ * The composition carries the argument the copy makes. The value is not in
+ * finding matches, it is in what gets ruled out, so the eye should land on the
+ * two threads that finish precisely because everything around them does not.
  *
- * Hand-placed rather than generated. Random scatter reads as noise, and random
- * positions would differ between server and client renders and break
- * hydration. Every coordinate here is deliberate.
+ * Hand-placed rather than generated: random scatter reads as noise, and random
+ * coordinates would differ between server and client renders and break
+ * hydration.
+ *
+ * No gradients, no glow filters, no shadows - structure comes from line weight
+ * and opacity alone, as the system requires.
  */
 
-/** Non-profits, left field. [x, y, radius] */
+/** [x, y] in a 1200 x 420 field. */
 const SEEKERS = [
-  [96, 86, 4], [72, 148, 3], [118, 206, 5], [80, 262, 3],
-  [128, 318, 4], [88, 372, 3], [146, 132, 3], [104, 420, 4],
+  [188, 74], [150, 122], [206, 166], [162, 212],
+  [214, 258], [168, 306], [232, 110], [178, 350],
 ] as const;
 
-/** Funders, right field. */
 const FUNDERS = [
-  [796, 70, 4], [834, 132, 3], [770, 180, 5], [822, 240, 3],
-  [784, 292, 4], [838, 348, 3], [774, 386, 4], [816, 434, 3],
-  [726, 112, 3], [740, 330, 3],
+  [1012, 62], [1050, 108], [986, 152], [1038, 200],
+  [1000, 248], [1054, 292], [992, 332], [1030, 372],
+  [944, 96], [956, 288],
 ] as const;
 
-type Verdict = 'apply' | 'maybe' | 'skip';
-
-/** [seeker index, funder index, verdict] */
-const LINKS: readonly (readonly [number, number, Verdict])[] = [
-  [2, 2, 'apply'],
-  [4, 6, 'apply'],
-  [0, 0, 'maybe'],
-  [2, 4, 'maybe'],
-  [5, 7, 'maybe'],
-  [6, 8, 'maybe'],
-  [0, 3, 'skip'], [1, 1, 'skip'], [1, 5, 'skip'], [3, 2, 'skip'],
-  [3, 9, 'skip'], [4, 0, 'skip'], [5, 3, 'skip'], [6, 1, 'skip'],
-  [7, 6, 'skip'], [7, 9, 'skip'], [2, 8, 'skip'], [0, 9, 'skip'],
-  [4, 4, 'skip'], [1, 8, 'skip'], [3, 5, 'skip'], [7, 2, 'skip'],
+/** [seeker, funder]. The two that connect are listed separately. */
+const RULED_OUT: readonly (readonly [number, number])[] = [
+  [0, 3], [1, 1], [1, 5], [3, 2], [3, 9], [4, 0], [5, 3], [6, 1],
+  [7, 6], [7, 9], [2, 8], [0, 9], [4, 4], [1, 8], [3, 5], [7, 2],
+  [0, 0], [2, 4], [5, 7], [6, 8], [2, 1], [5, 0], [6, 4], [4, 8],
 ];
 
-const STYLE: Record<Verdict, { stroke: string; width: number; opacity: number; dash?: string }> = {
-  // The two that connect: solid, bright, drawn last so they sit on top.
-  apply: { stroke: 'url(#thread-apply)', width: 1.6, opacity: 1 },
-  maybe: { stroke: 'url(#thread-maybe)', width: 1, opacity: 0.5 },
-  // Ruled out: dashed and faint. Present, because the work of excluding them
-  // is the product, but visibly not carrying anything.
-  skip: { stroke: '#3a4761', width: 0.75, opacity: 0.32, dash: '2 7' },
-};
+const MATCHED: readonly (readonly [number, number])[] = [
+  [2, 2],
+  [4, 6],
+];
 
-/** A curve that bows toward the centre, so the field reads as woven. */
-function thread(x1: number, y1: number, x2: number, y2: number): string {
+function thread(a: readonly [number, number], b: readonly [number, number]): string {
+  const [x1, y1] = a;
+  const [x2, y2] = b;
   const midX = (x1 + x2) / 2;
   const lift = (y1 + y2) / 2 + (y1 - y2) * 0.18;
-  return `M ${x1} ${y1} C ${midX - 110} ${y1}, ${midX + 110} ${lift}, ${x2} ${y2}`;
+  return `M ${x1} ${y1} C ${midX - 150} ${y1}, ${midX + 150} ${lift}, ${x2} ${y2}`;
 }
 
-export function MatchArtwork() {
-  const ordered = [
-    ...LINKS.filter(l => l[2] === 'skip'),
-    ...LINKS.filter(l => l[2] === 'maybe'),
-    ...LINKS.filter(l => l[2] === 'apply'),
-  ];
+/** Dot field filling the space behind each cluster, for density. */
+const DUST = [
+  [96, 44], [124, 96], [88, 178], [136, 258], [104, 332], [244, 46],
+  [258, 196], [270, 300], [116, 384], [222, 392],
+  [908, 44], [1088, 78], [1082, 226], [920, 202], [1096, 340], [900, 366],
+  [928, 140], [1074, 156], [912, 262], [1064, 404],
+] as const;
 
+export function MatchArtwork() {
   return (
     <svg
-      viewBox="0 0 900 470"
+      viewBox="0 0 1200 420"
       role="img"
-      aria-label="Many possible pairings between local non-profits and regional funders; most are ruled out, a few are worth a look, and two connect."
+      aria-label="Many possible pairings between local non-profits and regional funders. Most are ruled out; two connect."
       className="h-auto w-full"
     >
-      <defs>
-        <linearGradient id="thread-apply" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#6ee7b7" stopOpacity="0.15" />
-          <stop offset="45%" stopColor="#e9f6ff" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#8ed0ff" stopOpacity="0.85" />
-        </linearGradient>
-        <linearGradient id="thread-maybe" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#f0c05a" stopOpacity="0.08" />
-          <stop offset="50%" stopColor="#f0c05a" stopOpacity="0.65" />
-          <stop offset="100%" stopColor="#f0c05a" stopOpacity="0.2" />
-        </linearGradient>
-        <radialGradient id="node-live">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="55%" stopColor="#bfe4ff" />
-          <stop offset="100%" stopColor="#5aa9e0" />
-        </radialGradient>
-
-        <filter id="soft-glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="7" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-
-      </defs>
-
-      {/* Threads, ruled-out first so the live ones sit above them. */}
-      <g fill="none" strokeLinecap="round">
-        {ordered.map(([s, f, verdict], i) => {
-          const [x1, y1] = SEEKERS[s];
-          const [x2, y2] = FUNDERS[f];
-          const style = STYLE[verdict];
-          return (
-            <path
-              key={`${s}-${f}-${i}`}
-              d={thread(x1, y1, x2, y2)}
-              stroke={style.stroke}
-              strokeWidth={style.width}
-              strokeOpacity={style.opacity}
-              strokeDasharray={style.dash}
-              filter={verdict === 'apply' ? 'url(#soft-glow)' : undefined}
-            />
-          );
-        })}
+      {/* Ruled out: hairline, dashed, drawn first so the live threads sit above. */}
+      <g fill="none" stroke="#212121" strokeWidth="1" strokeDasharray="2 8" strokeLinecap="round">
+        {RULED_OUT.map(([s, f], i) => (
+          <path key={`r${i}`} d={thread(SEEKERS[s], FUNDERS[f])} />
+        ))}
       </g>
 
-      {/* The organizations. */}
+      {/* The two that connect. Solid, chalk, full weight. */}
+      <g fill="none" stroke="#f3f3f3" strokeWidth="1.25" strokeLinecap="round">
+        {MATCHED.map(([s, f], i) => (
+          <path key={`m${i}`} d={thread(SEEKERS[s], FUNDERS[f])} />
+        ))}
+      </g>
+
+      {/* Background dust: density, not detail. */}
+      <g fill="#474747">
+        {DUST.map(([x, y], i) => (
+          <circle key={`d${i}`} cx={x} cy={y} r="1.5" />
+        ))}
+      </g>
+
+      {/* Organizations. Matched ones get the gold compass-mark. */}
       <g>
-        {SEEKERS.map(([x, y, r], i) => {
-          const live = i === 2 || i === 4;
-          return (
+        {SEEKERS.map(([x, y], i) => {
+          const matched = MATCHED.some(([s]) => s === i);
+          return matched ? (
             <g key={`s${i}`}>
-              {live && <circle cx={x} cy={y} r={r + 7} fill="#8ed0ff" opacity="0.14" />}
-              <circle
-                cx={x}
-                cy={y}
-                r={r}
-                fill={live ? 'url(#node-live)' : '#243247'}
-                stroke={live ? 'none' : '#3c4c66'}
-                strokeWidth="1"
-              />
+              <circle cx={x} cy={y} r="3" fill="#f3f3f3" />
+              <circle cx={x} cy={y} r="8" fill="none" stroke="#6f6759" strokeWidth="1.5" />
             </g>
+          ) : (
+            <circle key={`s${i}`} cx={x} cy={y} r="2.5" fill="#9c9c9c" />
           );
         })}
-        {FUNDERS.map(([x, y, r], i) => {
-          const live = i === 2 || i === 6;
-          return (
+        {FUNDERS.map(([x, y], i) => {
+          const matched = MATCHED.some(([, f]) => f === i);
+          return matched ? (
             <g key={`f${i}`}>
-              {live && <circle cx={x} cy={y} r={r + 7} fill="#8ed0ff" opacity="0.14" />}
-              <circle
-                cx={x}
-                cy={y}
-                r={r}
-                fill={live ? 'url(#node-live)' : '#243247'}
-                stroke={live ? 'none' : '#3c4c66'}
-                strokeWidth="1"
-              />
+              <circle cx={x} cy={y} r="3" fill="#f3f3f3" />
+              <circle cx={x} cy={y} r="8" fill="none" stroke="#6f6759" strokeWidth="1.5" />
             </g>
+          ) : (
+            <circle key={`f${i}`} cx={x} cy={y} r="2.5" fill="#9c9c9c" />
           );
         })}
       </g>
 
-      {/* Field labels, small enough to be texture rather than a diagram. */}
-      <text x="72" y="34" fontSize="10" letterSpacing="3.4" fill="#5b6f8f">NON-PROFITS</text>
-      <text x="726" y="34" fontSize="10" letterSpacing="3.4" fill="#5b6f8f">FUNDERS</text>
+      {/* Field labels, in the meta voice. */}
+      <text x="150" y="24" fontSize="11" letterSpacing="3" fill="#9c9c9c" fontFamily="var(--font-input)">
+        NON-PROFITS
+      </text>
+      <text x="944" y="24" fontSize="11" letterSpacing="3" fill="#9c9c9c" fontFamily="var(--font-input)">
+        FUNDERS
+      </text>
     </svg>
   );
 }
