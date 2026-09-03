@@ -1,0 +1,231 @@
+// Grant Matcher System — unified data repository (requirements §2.1).
+// Targets any Postgres: Vercel Postgres and Supabase both work off DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum OrgKind {
+  SEEKER
+  DONOR
+}
+
+enum ComplianceType {
+  FORM_990
+  GOOD_STANDING
+  IRS_DETERMINATION
+  AUDITED_FINANCIALS
+  BOARD_ROSTER
+  STATE_CHARITY_REGISTRATION
+}
+
+enum ComplianceStatus {
+  MISSING
+  PENDING
+  VERIFIED
+  EXPIRED
+}
+
+enum InterviewRole {
+  SEEKER
+  DONOR
+}
+
+enum InterviewStatus {
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum MatchVerdict {
+  APPLY
+  MAYBE
+  SKIP
+}
+
+enum ResearchStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+/// Shared CRM record. One table for both sides of the platform so contacts,
+/// notes and interaction history work identically for seekers and donors.
+model Organization {
+  id        String  @id @default(cuid())
+  kind      OrgKind
+  name      String
+  ein       String?
+  website   String?
+  mission   String? @db.Text
+  addressLine String?
+  city      String?
+  state     String?
+  postalCode String?
+  phone     String?
+  notes     String? @db.Text
+  isSeed    Boolean @default(false)
+
+  contacts      Contact[]
+  seekerProfile SeekerProfile?
+  donorProfile  DonorProfile?
+  compliance    ComplianceItem[]
+  interviews    InterviewSession[]
+  researchRuns  ResearchRun[]
+  seekerMatches Match[] @relation("SeekerMatches")
+  donorMatches  Match[] @relation("DonorMatches")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, name])
+}
+
+model Contact {
+  id     String @id @default(cuid())
+  orgId  String
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name   String
+  title  String?
+  email  String?
+  phone  String?
+  isPrimary Boolean @default(false)
+  notes  String? @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([orgId])
+}
+
+/// The qualitative scope the AI interviewer extracts (requirements §2.2).
+/// The four "really / NOT" fields are the substance the matching engine reads.
+model SeekerProfile {
+  id            String @id @default(cuid())
+  orgId         String @unique
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  servesWho     String? @db.Text
+  doesWhat      String? @db.Text
+  doesNotDo     String? @db.Text
+  doesNotServe  String? @db.Text
+
+  populations   String[] @default([])
+  serviceAreas  String[] @default([])
+  programAreas  String[] @default([])
+  outcomes      String? @db.Text
+
+  yearFounded   Int?
+  annualBudget  Int?
+  staffCount    Int?
+  volunteerCount Int?
+  interviewComplete Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Live donor requirements profile — hand-entered, extracted from the donor
+/// interview, or refreshed by the scraper (requirements §2.3).
+model DonorProfile {
+  id            String @id @default(cuid())
+  orgId         String @unique
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  fundingFocus     String[] @default([])
+  excludedSectors  String[] @default([])
+  populationsServed String[] @default([])
+  geographies      String[] @default([])
+
+  grantMin      Int?
+  grantMax      Int?
+  cycleNotes    String? @db.Text
+  nextDeadline  DateTime?
+  applicationPortal String?
+  applicationUrl String?
+  requiresLoi   Boolean @default(false)
+  requires990   Boolean @default(true)
+  requiresGoodStanding Boolean @default(true)
+  givingNotes   String? @db.Text
+
+  lastResearchedAt DateTime?
+  researchGrounded Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
+model ComplianceItem {
+  id       String @id @default(cuid())
+  orgId    String
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  type     ComplianceType
+  status   ComplianceStatus @default(MISSING)
+  periodLabel String?
+  expiresAt DateTime?
+  documentUrl String?
+  notes    String? @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, type])
+}
+
+model InterviewSession {
+  id       String @id @default(cuid())
+  orgId    String
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  role     InterviewRole
+  status   InterviewStatus @default(IN_PROGRESS)
+  /// [{ role: 'assistant' | 'user', content: string, at: string }]
+  messages Json @default("[]")
+  summary  String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, role])
+}
+
+/// One execution of the scraper against one external source, kept so a donor
+/// profile field can always be traced back to the page it came from.
+model ResearchRun {
+  id        String @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  source    String
+  status    ResearchStatus @default(RUNNING)
+  grounded  Boolean @default(false)
+  dossier   String? @db.Text
+  /// [{ title, url }]
+  sources   Json @default("[]")
+  /// Fields the run proposed, before a human accepted them.
+  extracted Json?
+  error     String? @db.Text
+  triggeredBy String @default("manual")
+  startedAt DateTime @default(now())
+  finishedAt DateTime?
+
+  @@index([orgId, startedAt])
+}
+
+model Match {
+  id          String @id @default(cuid())
+  seekerOrgId String
+  seeker      Organization @relation("SeekerMatches", fields: [seekerOrgId], references: [id], onDelete: Cascade)
+  donorOrgId  String
+  donor       Organization @relation("DonorMatches", fields: [donorOrgId], references: [id], onDelete: Cascade)
+
+  score       Int
+  verdict     MatchVerdict
+  headline    String
+  rationale   String @db.Text
+  /// [{ dimension, weight, score, note }]
+  dimensions  Json @default("[]")
+  alignments  String[] @default([])
+  gaps        String[] @default([])
+  blockers    String[] @default([])
+  computedAt  DateTime @default(now())
+
+  @@unique([seekerOrgId, donorOrgId])
+  @@index([donorOrgId, score])
+}

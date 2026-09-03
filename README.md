@@ -1,0 +1,184 @@
+# Grant Align
+
+Prototype of the Grant Matcher System described in `project_requirements.md`: a
+dual-sided platform that matches Frederick County non-profits to regional
+funders on **operational reality** — what an organization actually does, and
+explicitly does not do — rather than on mission-statement language.
+
+## Stack
+
+- **Next.js 15** (App Router, server actions) + TypeScript + Tailwind
+- **Postgres via Prisma** — plain `DATABASE_URL`, so Vercel Postgres and
+  Supabase are interchangeable
+- **Genkit + Google Gemini** for the interviewers, research extraction, match
+  scoring and the 1-pager
+- **Vercel Cron** for the scheduled donor research job
+
+## Running locally
+
+```bash
+cp .env.example .env          # add your GEMINI_API_KEY
+npm install
+./scripts/dev-db.sh start     # Postgres on 5432, data under .devdb/
+npm run db:push               # create the tables
+npm run db:seed               # load the local seed donors from §2.3
+npm run dev
+```
+
+`./scripts/dev-db.sh` also takes `stop`, `status` and `reset`. It keeps its data
+directory inside the project, so it never disturbs a system Postgres you run for
+something else.
+
+Two scripts do the rest:
+
+```bash
+npm run smoke     # exercise all four AI flows once against real seed data
+npm run demo      # research live donor criteria, then score every pair
+```
+
+`npm run genkit:dev` opens the Genkit developer UI against the same flows, which
+is the fastest way to iterate on interviewer and scoring prompts.
+
+### Connection pooling
+
+`pgagroal/` holds a working pool config, started with
+`./scripts/dev-db.sh start --pool` (pool on 5433, Postgres on 5432).
+
+**It is off by default, and you probably want to leave it off locally.**
+pgagroal 2.2.0 on macOS stops answering entirely as soon as Prisma opens its
+normal burst of concurrent connections — the log shows only
+`read error errno=54` and every later connection hangs. Raising
+`max_connections`, raising the per-database `MAX_SIZE` and pinning Prisma's
+`connection_limit` all failed to prevent it; the identical workload against
+Postgres directly is stable across every run. A local Postgres handles one
+developer's connections without help, and the deployed app pools through
+Supabase rather than pgagroal, so the pool buys nothing here worth an
+unexplained hang mid-demo. The config is kept because it works for sequential
+clients and pgagroal is a first-class citizen on Linux, where this is worth
+revisiting.
+
+Note also that pgagroal cannot pool for the deployed app at all: it is a daemon
+needing a persistent host, and Vercel functions are ephemeral.
+
+## Deploying to Vercel + Supabase
+
+1. **Supabase**: create the project, then take both strings from
+   *Project Settings > Database > Connection string*:
+
+   | Variable | Which string | Suffix |
+   | --- | --- | --- |
+   | `DATABASE_URL` | Transaction pooler, port **6543** | `?pgbouncer=true&connection_limit=1` |
+   | `DIRECT_URL` | Direct connection, port **5432** | none |
+
+   Both suffixes matter. `pgbouncer=true` stops Prisma using prepared
+   statements, which a transaction-mode pooler cannot hold between statements.
+   `connection_limit=1` keeps each serverless invocation to one connection —
+   without it Prisma sizes its pool at `num_cpus*2+1` *per instance* and
+   exhausts the pooler under any real traffic.
+
+2. **Schema and seed**, run once from your machine with the production values:
+
+   ```bash
+   DATABASE_URL=<direct url> DIRECT_URL=<direct url> npx prisma db push
+   DATABASE_URL=<pooled url> npm run db:seed
+   ```
+
+   Use the direct URL for `db push` — migrations cannot run over the pooler.
+
+3. **Vercel**: import the repo (build command is already
+   `prisma generate && next build`) and set `DATABASE_URL`, `DIRECT_URL`,
+   `GEMINI_API_KEY` and `CRON_SECRET`.
+
+4. `vercel.json` registers the cron at Mondays 06:00 UTC. Vercel sends
+   `CRON_SECRET` as a bearer token; the endpoint refuses to run in production
+   without it, since an open refresh endpoint is a way to burn the model quota.
+   Cron only fires on production deployments, not previews.
+
+Two Supabase gotchas worth knowing before a demo: free-tier projects pause after
+about a week idle and the first request back is slow, and the pooler's
+connection ceiling is low enough that a runaway `connection_limit` shows up as
+intermittent 500s rather than a clean error.
+
+### After the POC: Firestore
+
+The plan is to move to Firebase/Firestore once the POC has been shown, so this
+build deliberately does not invest in Postgres-specific features — no triggers,
+no views, no stored procedures, no RLS policies. What will need rewriting is
+`src/lib/*.ts` and the `prisma.*` calls inside `src/app/**/page.tsx`; the AI
+flows in `src/ai/` take plain strings and objects and are storage-agnostic
+already. The array columns (`fundingFocus`, `excludedSectors`, `populations`)
+map cleanly onto Firestore arrays, and `Match.dimensions` is already JSON.
+
+## What is built
+
+| Requirement | Where |
+| --- | --- |
+| §2.1 Shared CRM | `prisma/schema.prisma` — one `Organization` table for both sides, plus contacts, notes, addresses |
+| §2.2 Mission & identity repository | Seeker profile on `/seekers/[id]` |
+| §2.2 AI conversational interviewer | `src/ai/flows/interviewer.ts`, `src/components/InterviewPanel.tsx` |
+| §2.2 Eligibility & compliance | `src/components/ComplianceCard.tsx` — Form 990, good standing, determination letter and more |
+| §2.2 Automated 1-pager | `src/ai/flows/onePager.ts`, `/seekers/[id]/one-pager` — print-to-letterhead and copy-as-text |
+| §2.3 Seed donors | `prisma/seed.ts` — the nine organizations from the requirements |
+| §2.3 Web scraper | `src/ai/web-research.ts` + `src/ai/flows/researchDonor.ts` |
+| §2.3 Cron task | `src/app/api/cron/donor-refresh/route.ts`, `vercel.json` |
+| §2.3 Donor AI interviewer | Same flow as the seeker interviewer, different agenda |
+| §3 Matching engine | `src/ai/flows/scoreMatch.ts`, `src/lib/matching.ts`, `/matches` |
+
+## Design decisions worth knowing
+
+**Interviews chase negative scope.** Both interviewers are built to push on what
+an organization does *not* do and who a funder will *not* fund. Exclusions are
+what let the engine say "skip this one" with confidence, and nobody volunteers
+them unasked.
+
+**Research proposes; a person accepts.** A scraped criterion never writes
+straight to a donor profile. Runs land in `ResearchRun.extracted` with their
+sources, and someone accepts them on the donor page. A wrong scraped exclusion
+does its damage invisibly — it removes eligible seekers from a funder's results
+and nobody sees the match that did not happen.
+
+**Grounding is tracked, not assumed.** Gemini will happily answer a research
+prompt from memory if Search is unavailable. Runs record whether Search actually
+ran, and unverified results are labelled as such throughout the UI.
+
+**Blockers override the score.** Six weighted dimensions produce the number, but
+a stated exclusion, an out-of-footprint address, or missing mandatory paperwork
+forces SKIP regardless. A false "apply" costs a small non-profit more than a
+false "skip".
+
+**Scoring is sequential.** The Gemini free tier rate-limits hard enough that a
+parallel fan-out over a full donor list fails most of its calls.
+
+## Known limitations
+
+- **Some funder sites cannot be fetched.** `cffredco.org` refuses our requests
+  outright, and JS-only sites reduce to an empty shell. The Search-grounded pass
+  is the fallback for those, which is why both run on every refresh.
+- **The §4 paid databases are reached only indirectly.** Foundant, Candid /
+  GuideStar and the Foundation Directory are hit through Google Search
+  grounding, not through accounts or APIs. Direct integration needs
+  subscriptions and a terms-of-service review before it is built.
+- **No authentication.** Every visitor sees every organization. Real deployment
+  needs auth and a seeker/donor/staff permission split before any non-profit's
+  data goes in.
+- **No file storage.** Compliance items hold a link to a document, not the
+  document.
+- **The AI flows have not been run against a live key.** `npm run smoke`
+  exercises all four in one pass and is the first thing to run once a key is in
+  `.env`.
+- **No pooling on macOS.** See the connection-pooling note above.
+
+## Open questions for the grants expert (§5)
+
+The requirements list a review checklist. Three items need a decision before the
+next iteration:
+
+1. **Interviewer agendas** — `SEEKER_AGENDA` and `DONOR_AGENDA` in
+   `src/ai/flows/interviewer.ts` are a first pass at the qualitative metrics.
+   They are plain text and meant to be edited by whoever knows the domain.
+2. **1-pager fields** — the sections in `OnePagerSchema` are an informed guess
+   at what local funders expect. Confirm against actual local applications.
+3. **Compliance items** — `REQUIRED_COMPLIANCE` in `src/lib/profile-text.ts`
+   currently requires Form 990, good standing and the IRS determination letter.
+   Audited financials, board roster and state charity registration are tracked
+   but optional.
