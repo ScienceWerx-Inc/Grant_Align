@@ -7,8 +7,23 @@ import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
 // the schedule work through the list beats one long job that times out.
 export const maxDuration = 300;
 
-const BATCH_SIZE = Number(process.env.DONOR_REFRESH_BATCH ?? 3);
-const STALE_AFTER_DAYS = Number(process.env.DONOR_REFRESH_STALE_DAYS ?? 14);
+/**
+ * Reads a positive integer from the environment, falling back on anything
+ * unusable.
+ *
+ * `Number(process.env.X ?? default)` is wrong here and fails silently: an env
+ * var declared with an empty value - which is exactly what a dashboard row
+ * saved without a value produces - is an empty string, not nullish. It skips
+ * the `??`, and `Number('')` is 0. A batch size of 0 makes the cron refresh
+ * nothing, report success, and look like it ran.
+ */
+function positiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+}
+
+const BATCH_SIZE = positiveInt(process.env.DONOR_REFRESH_BATCH, 3);
+const STALE_AFTER_DAYS = positiveInt(process.env.DONOR_REFRESH_STALE_DAYS, 14);
 
 /**
  * The scheduled scraper (requirements §2.3). Wired up in vercel.json; the

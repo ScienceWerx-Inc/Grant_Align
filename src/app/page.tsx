@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { WorkflowDiagram } from '@/components/landing/Diagram';
@@ -70,8 +71,58 @@ const FEATURES = [
   ['One-page summary', 'A standardized funder-ready 1-pager, built only from what you have actually told us, printed straight onto your own letterhead.'],
 ];
 
-export default async function LandingPage() {
+/**
+ * The data-dependent half of the hero, streamed separately.
+ *
+ * The five queries behind it are round trips to eu-central-1, and holding the
+ * headline and call-to-action hostage to them made the whole page appear
+ * blank for over a second. Suspense lets the static half paint straight away
+ * and the numbers arrive when they arrive.
+ */
+async function HeroData() {
   const stats = await landingData();
+  if (!stats) return null;
+
+  return (
+    <>
+      <dl className="mt-12 grid max-w-xl grid-cols-2 gap-6 sm:grid-cols-4">
+        {[
+          [stats.donors, 'regional funders'],
+          [stats.researched, 'researched live'],
+          [stats.seekers, 'non-profit profiles'],
+          [stats.matches, 'pairings evaluated'],
+        ].map(([value, label]) => (
+          <div key={label as string}>
+            <dt className="text-2xl font-semibold tracking-tight">{value as number}</dt>
+            <dd className="mt-0.5 text-xs text-muted">{label as string}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {stats.sample && (
+        <div className="mt-12 lg:absolute lg:right-6 lg:top-1/2 lg:mt-0 lg:w-[26rem] lg:-translate-y-1/2 lg:pl-4">
+          <SampleMatch match={stats.sample} seeker={stats.sample.seeker} donor={stats.sample.donor} />
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Keeps the hero's height stable while the numbers load. */
+function HeroDataSkeleton() {
+  return (
+    <dl className="mt-12 grid max-w-xl grid-cols-2 gap-6 sm:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <div className="h-7 w-12 animate-pulse rounded bg-line/70" />
+          <div className="h-2.5 w-20 animate-pulse rounded bg-line/70" />
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+export default async function LandingPage() {
 
   return (
     <div className="bg-white">
@@ -90,8 +141,8 @@ export default async function LandingPage() {
 
       {/* Hero */}
       <section className="border-b border-line bg-gradient-to-b from-brand-light/50 to-white">
-        <div className="mx-auto grid max-w-6xl gap-12 px-6 py-20 sm:py-24 lg:grid-cols-[1.25fr,1fr] lg:items-center">
-          <div>
+        <div className="relative mx-auto max-w-6xl px-6 py-20 sm:py-24">
+          <div className="lg:max-w-[38rem]">
           <p className="mb-4 inline-flex items-center rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-brand-dark">
             Frederick County, Maryland
           </p>
@@ -108,32 +159,10 @@ export default async function LandingPage() {
             <Link href="/donors" className="btn-secondary px-5 py-2.5">I fund non-profits</Link>
           </div>
 
-          {stats && (
-            <dl className="mt-12 grid max-w-xl grid-cols-2 gap-6 sm:grid-cols-4">
-              {[
-                [stats.donors, 'regional funders'],
-                [stats.researched, 'researched live'],
-                [stats.seekers, 'non-profit profiles'],
-                [stats.matches, 'pairings evaluated'],
-              ].map(([value, label]) => (
-                <div key={label as string}>
-                  <dt className="text-2xl font-semibold tracking-tight">{value as number}</dt>
-                  <dd className="mt-0.5 text-xs text-muted">{label as string}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
+            <Suspense fallback={<HeroDataSkeleton />}>
+              <HeroData />
+            </Suspense>
           </div>
-
-          {stats?.sample && (
-            <div className="lg:pl-4">
-              <SampleMatch
-                match={stats.sample}
-                seeker={stats.sample.seeker}
-                donor={stats.sample.donor}
-              />
-            </div>
-          )}
         </div>
       </section>
 

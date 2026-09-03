@@ -115,3 +115,49 @@ export function StatTile({ label, value, href }: { label: string; value: string 
   );
   return href ? <Link href={href}>{body}</Link> : body;
 }
+
+/**
+ * Skeleton primitives for route-level loading states.
+ *
+ * Every page here queries Supabase in eu-central-1, so a navigation costs
+ * several hundred milliseconds of round trip before anything can render. Next
+ * shows a `loading.tsx` the instant a link is clicked, which turns that gap
+ * from an unresponsive page into visible progress - the layout is already
+ * correct and only the data is missing.
+ */
+export function SkeletonLine({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded bg-line/70 ${className}`} />;
+}
+
+export function SkeletonCard({ rows = 3, title = true }: { rows?: number; title?: boolean }) {
+  return (
+    <section className="card">
+      {title && (
+        <div className="card-header">
+          <SkeletonLine className="h-3.5 w-40" />
+        </div>
+      )}
+      <div className="card-body space-y-4">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <SkeletonLine className="h-3 w-1/3" />
+            <SkeletonLine className="h-3 w-full" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function SkeletonStats({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="card space-y-2 px-5 py-4">
+          <SkeletonLine className="h-6 w-12" />
+          <SkeletonLine className="h-2.5 w-24" />
+        </div>
+      ))}
+    </div>
+  );
+}

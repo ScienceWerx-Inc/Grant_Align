@@ -6,6 +6,37 @@
   color-scheme: light;
 }
 
+html {
+  /* In-page anchors on the landing page jump without this. */
+  scroll-behavior: smooth;
+}
+
+/*
+ * Anchored sections sit under a sticky header, so without a scroll margin the
+ * heading lands underneath it and the section looks like it starts mid-sentence.
+ */
+[id] {
+  scroll-margin-top: 5rem;
+}
+
+/*
+ * Anyone who has asked their system for less motion gets none of it: smooth
+ * scrolling in particular is a common migraine and nausea trigger.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
   @apply bg-surface text-ink antialiased;
 }

@@ -65,3 +65,18 @@ test('toCount rejects values too large for the Int columns', () => {
   assert.equal(toCount(9e12), undefined);
   assert.equal(toCount('5000025000'), undefined);
 });
+
+test('REGRESSION: an env var set to an empty string falls back to its default', () => {
+  // A Vercel dashboard row saved with no value arrives as '', which skips `??`
+  // and makes Number('') === 0 - a cron batch size of zero that refreshes
+  // nothing and still reports success.
+  const positiveInt = (value: string | undefined, fallback: number) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
+  };
+  assert.equal(positiveInt('', 3), 3);
+  assert.equal(positiveInt(undefined, 3), 3);
+  assert.equal(positiveInt('0', 3), 3);
+  assert.equal(positiveInt('abc', 3), 3);
+  assert.equal(positiveInt('5', 3), 5);
+});
