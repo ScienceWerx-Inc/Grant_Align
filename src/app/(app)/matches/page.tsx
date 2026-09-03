@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { Card, EmptyState, PageHeader, VerdictBadge } from '@/components/ui';
-import { ActionButton } from '@/components/ActionButton';
+import { MatchRunner } from '@/components/MatchRunner';
 import { MatchCard } from '@/components/MatchList';
 
 export const dynamic = 'force-dynamic';
@@ -29,16 +29,11 @@ export default async function MatchesPage() {
             ? `${total} funder pairings evaluated against operational scope, exclusions, geography and documentation.`
             : undefined
         }
-        action={
-          <ActionButton
-            endpoint="/api/matches/run"
-            body={{}}
-            label="Re-run all matches"
-            pendingLabel="Scoring…"
-            successMessage="Evaluated {evaluated} pairing(s)."
-          />
-        }
       />
+
+      <div className="mb-6">
+        <MatchRunner />
+      </div>
 
       {seekers.length === 0 ? (
         <EmptyState

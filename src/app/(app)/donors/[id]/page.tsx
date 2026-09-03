@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { Card, Field, PageHeader } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
 import { ActionButton } from '@/components/ActionButton';
+import { MatchRunner } from '@/components/MatchRunner';
 import { OrgContacts } from '@/components/OrgContacts';
 import { ResearchRuns } from '@/components/ResearchRuns';
 import { MatchCard } from '@/components/MatchList';
@@ -48,13 +49,7 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
               variant="secondary"
               successMessage="Criteria proposed — review them below."
             />
-            <ActionButton
-              endpoint="/api/matches/run"
-              body={{ donorId: org.id }}
-              label="Find matching non-profits"
-              pendingLabel="Matching…"
-              successMessage="Evaluated {evaluated} non-profit(s)."
-            />
+            <MatchRunner donorId={org.id} label="Find matching non-profits" />
           </>
         }
       />

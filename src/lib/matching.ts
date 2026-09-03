@@ -16,6 +16,13 @@ import type { MatchVerdict } from '@prisma/client';
 const SEEKER_INCLUDE = { seekerProfile: true, contacts: true, compliance: true } as const;
 const DONOR_INCLUDE = { donorProfile: true, contacts: true } as const;
 
+export interface RunProgress {
+  /** 1-based index of the pair just finished. */
+  index: number;
+  total: number;
+  outcome: PairOutcome;
+}
+
 export interface PairOutcome {
   seekerId: string;
   donorId: string;
@@ -107,7 +114,16 @@ async function scorePair(seeker: SeekerRecord, donor: DonorRecord): Promise<Pair
  * a parallel fan-out over a full donor list fails most of its calls, and a slow
  * complete run beats a fast half-empty one.
  */
-export async function runMatches(opts: { seekerId?: string; donorId?: string }): Promise<PairOutcome[]> {
+export async function runMatches(
+  opts: { seekerId?: string; donorId?: string },
+  /**
+   * Called as each pair finishes, so a caller can report progress while the run
+   * is still going. A full re-run is minutes long on a rate-limited key, and a
+   * button that says "Scoring..." for four minutes is indistinguishable from
+   * one that has hung.
+   */
+  onProgress?: (progress: RunProgress) => void | Promise<void>,
+): Promise<PairOutcome[]> {
   const seekers = (await prisma.organization.findMany({
     where: { kind: 'SEEKER', ...(opts.seekerId ? { id: opts.seekerId } : {}) },
     include: SEEKER_INCLUDE,
@@ -121,12 +137,15 @@ export async function runMatches(opts: { seekerId?: string; donorId?: string }):
   })) as DonorRecord[];
 
   const outcomes: PairOutcome[] = [];
+  const total = seekers.length * donors.length;
+
   for (const seeker of seekers) {
     for (const donor of donors) {
+      let outcome: PairOutcome;
       try {
-        outcomes.push(await scorePair(seeker, donor));
+        outcome = await scorePair(seeker, donor);
       } catch (err: any) {
-        outcomes.push({
+        outcome = {
           seekerId: seeker.id,
           donorId: donor.id,
           seekerName: seeker.name,
@@ -134,9 +153,16 @@ export async function runMatches(opts: { seekerId?: string; donorId?: string }):
           score: 0,
           verdict: 'SKIP',
           skippedReason: err?.message ?? 'Scoring failed.',
-        });
+        };
       }
+
+      outcomes.push(outcome);
+      // Each scored pair is already persisted by scorePair, so progress
+      // survives the request being cut short - a run that hits a function
+      // timeout keeps everything it finished, and re-running resumes the rest.
+      await onProgress?.({ index: outcomes.length, total, outcome });
     }
   }
+
   return outcomes;
 }

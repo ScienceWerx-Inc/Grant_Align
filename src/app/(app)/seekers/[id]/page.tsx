@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { Card, Field, PageHeader, Tags } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
-import { ActionButton } from '@/components/ActionButton';
+import { MatchRunner } from '@/components/MatchRunner';
 import { OrgContacts } from '@/components/OrgContacts';
 import { ComplianceCard } from '@/components/ComplianceCard';
 import { MatchCard } from '@/components/MatchList';
@@ -44,13 +44,7 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
             <Link href={`/seekers/${org.id}/one-pager`} className="btn-secondary">
               1-pager
             </Link>
-            <ActionButton
-              endpoint="/api/matches/run"
-              body={{ seekerId: org.id }}
-              label="Run matching"
-              pendingLabel="Matching…"
-              successMessage="Evaluated {evaluated} funder(s)."
-            />
+            <MatchRunner seekerId={org.id} label="Run matching" />
           </>
         }
       />

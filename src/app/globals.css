@@ -82,6 +82,19 @@ body {
   }
 }
 
+/* Newly-arrived rows in a live run slide up as they land. Short enough to
+   register without delaying the next one, which can arrive within a second. */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* The 1-pager prints onto the organization's own letterhead, so everything
    that belongs to this app — nav, buttons, headings — is dropped from print. */
 @media print {
