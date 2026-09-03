@@ -17,11 +17,10 @@ import { openAICompatible } from '@genkit-ai/compat-oai';
  * 0.9/1.0 era, while `@genkit-ai/compat-oai` tracks the same 1.42 line as the
  * rest of this project.
  *
- * THE ONE REAL DIFFERENCE between the providers is web search. Gemini can run
- * Google Search as a tool, which is how donor research reaches the aggregators
- * in requirements section 4. Mistral's chat completions cannot, so on Mistral
- * the research pipeline degrades to direct page fetches of the funder's own
- * site and says so in the run record. See src/ai/web-research.ts.
+ * Both providers can search the live web, by different routes: Gemini attaches
+ * Google Search as a tool to an ordinary generate call, while Mistral needs its
+ * separate Agents API. src/ai/web-research.ts dispatches between them, so the
+ * research pipeline behaves the same either way.
  */
 
 export type AiProvider = 'gemini' | 'mistral';
@@ -75,7 +74,11 @@ export const aiConfigured = Boolean(AI_PROVIDER === 'mistral' ? MISTRAL_API_KEY 
 export const AI_KEY_VAR = AI_PROVIDER === 'mistral' ? 'MISTRAL_API_KEY' : 'GEMINI_API_KEY';
 
 /**
- * Whether the configured provider can search the live web from inside a model
- * call. Only Gemini can; everything else falls back to direct page fetches.
+ * Whether the configured provider can search the live web.
+ *
+ * Gemini does it inside a normal generate call, with Search attached as a tool.
+ * Mistral cannot do it there at all, but exposes the same capability through
+ * its Agents API - see src/ai/search-mistral.ts. Both routes are real search
+ * with citations, so donor research works on either provider.
  */
-export const supportsWebSearch = AI_PROVIDER === 'gemini';
+export const supportsWebSearch = AI_PROVIDER === 'gemini' || AI_PROVIDER === 'mistral';

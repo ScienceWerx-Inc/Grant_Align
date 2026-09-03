@@ -23,7 +23,8 @@
  */
 
 import * as cheerio from 'cheerio';
-import { ai, DEFAULT_MODEL, supportsWebSearch } from '@/ai/providers';
+import { ai, AI_PROVIDER, DEFAULT_MODEL, supportsWebSearch } from '@/ai/providers';
+import { mistralWebSearch } from '@/ai/search-mistral';
 import { withRetry } from '@/ai/retry';
 
 export interface ResearchSource {
@@ -224,15 +225,17 @@ function sourcesFromResponse(response: any): ResearchSource[] {
  */
 const MAX_SEARCH_ATTEMPTS = 3;
 
-/** Runs one web-grounded search pass and returns what it found as free text. */
+/**
+ * Runs one web search on whichever provider is configured.
+ *
+ * Never throws: a provider that cannot search, or a search that fails, must
+ * still let the run finish on directly-fetched pages alone. What it must never
+ * do is return unsearched model recall with `grounded: true` - every caller
+ * treats that flag as "a real page said this".
+ */
 export async function groundedSearch(prompt: string): Promise<GroundedResearch> {
   let groundingError: string | undefined;
 
-  // Only Gemini can run Search as a tool. On any other provider, attempting it
-  // would either error or - worse - silently return plain model recall that the
-  // rest of the pipeline would treat as researched fact. Refusing up front
-  // keeps the "grounded" flag honest, and donor research still works from the
-  // pages fetched directly off the funder's own site.
   if (!supportsWebSearch) {
     return {
       dossier: '',
@@ -241,6 +244,12 @@ export async function groundedSearch(prompt: string): Promise<GroundedResearch> 
       groundingError:
         'The configured AI provider cannot search the web, so this run used only pages fetched directly from the funder\'s site.',
     };
+  }
+
+  // Mistral searches through the Agents API rather than as a tool on a normal
+  // generate call, so it takes a different route entirely.
+  if (AI_PROVIDER === 'mistral') {
+    return mistralWebSearch(prompt);
   }
 
   for (let attempt = 1; attempt <= MAX_SEARCH_ATTEMPTS; attempt++) {

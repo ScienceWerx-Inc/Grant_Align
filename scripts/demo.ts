@@ -28,6 +28,20 @@ import { runMatches } from '@/lib/matching';
 
 const DEFAULT_DONOR_COUNT = 3;
 
+/**
+ * Pause between donors.
+ *
+ * Each donor costs a web search plus an extraction pass, and a search response
+ * carries a lot of tokens. Free-tier keys meter tokens per minute, so running
+ * donors back to back exhausts the window around the fourth one and every
+ * remaining donor fails - which looks like broken research rather than a quota
+ * ceiling. Waiting between them is slower and finishes; not waiting is faster
+ * and does not.
+ */
+const PAUSE_BETWEEN_DONORS_MS = Number(process.env.DEMO_PAUSE_MS ?? 20_000);
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 function heading(text: string) {
   console.log(`\n${'='.repeat(72)}\n${text}\n${'='.repeat(72)}`);
 }
@@ -57,11 +71,15 @@ async function main() {
 
   heading(`Researching ${donors.length} donor(s)`);
   let accepted = 0;
-  for (const donor of donors) {
+  const failed: string[] = [];
+
+  for (const [index, donor] of donors.entries()) {
+    if (index > 0 && PAUSE_BETWEEN_DONORS_MS > 0) await sleep(PAUSE_BETWEEN_DONORS_MS);
     process.stdout.write(`  ${donor.name} … `);
     const result = await refreshDonor(donor.id, 'manual');
     if (!result.ok) {
       console.log(`no criteria (${result.error ?? 'unknown'})`);
+      failed.push(donor.name);
       continue;
     }
     try {
@@ -74,7 +92,13 @@ async function main() {
       );
     } catch (err: any) {
       console.log(`proposed but not accepted: ${err?.message}`);
+      failed.push(donor.name);
     }
+  }
+
+  if (failed.length > 0) {
+    console.log(`\n  ${failed.length} donor(s) produced nothing: ${failed.join(', ')}`);
+    console.log('  Re-running the demo picks these up first, since they stay marked unresearched.');
   }
 
   if (accepted === 0) {

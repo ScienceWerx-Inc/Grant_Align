@@ -8,7 +8,7 @@
  * prototype look researched.
  */
 
-import { PrismaClient, type OrgKind } from '@prisma/client';
+import { PrismaClient, type ComplianceType, type OrgKind } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -115,6 +115,15 @@ async function main() {
         volunteerCount: 140,
         interviewComplete: true,
       },
+      // Established since 2009 with a real budget, so its filings are in order.
+      // Without at least one fully-documented seeker, every match in the system
+      // is correctly blocked on paperwork and the engine looks broken - it is
+      // the compliance dimension doing its job, but nothing else gets to show.
+      compliance: {
+        FORM_990: { status: 'VERIFIED', periodLabel: 'FY2025' },
+        GOOD_STANDING: { status: 'VERIFIED', periodLabel: 'Expires 2027-04-30' },
+        IRS_DETERMINATION: { status: 'VERIFIED', periodLabel: '501(c)(3), 2009' },
+      },
     },
     {
       name: 'Carroll Creek Youth Arts',
@@ -132,6 +141,14 @@ async function main() {
         volunteerCount: 25,
         interviewComplete: false,
       },
+      // Younger and thinner-staffed: 990 filed, good standing lapsed, and the
+      // interview unfinished. This is the seeker that demonstrates a blocked
+      // match with a fixable reason attached.
+      compliance: {
+        FORM_990: { status: 'VERIFIED', periodLabel: 'FY2025' },
+        GOOD_STANDING: { status: 'EXPIRED', periodLabel: 'Lapsed 2026-03-31' },
+        IRS_DETERMINATION: { status: 'VERIFIED', periodLabel: '501(c)(3), 2016' },
+      },
     },
   ];
 
@@ -147,11 +164,11 @@ async function main() {
       create: { orgId: org.id, ...seeker.profile },
       update: seeker.profile,
     });
-    for (const type of ['FORM_990', 'GOOD_STANDING', 'IRS_DETERMINATION'] as const) {
+    for (const [type, item] of Object.entries(seeker.compliance) as [ComplianceType, { status: any; periodLabel?: string }][]) {
       await prisma.complianceItem.upsert({
         where: { orgId_type: { orgId: org.id, type } },
-        create: { orgId: org.id, type },
-        update: {},
+        create: { orgId: org.id, type, ...item },
+        update: item,
       });
     }
   }

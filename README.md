@@ -45,17 +45,24 @@ reached through the official OpenAI-compatibility plugin, so any other
 OpenAI-compatible endpoint (Groq, OpenRouter, Together, a local vLLM) works by
 changing `baseURL` in `src/ai/providers.ts` and nothing else.
 
-**The providers are not equivalent, and the difference is web search.** Gemini
-can run Google Search as a tool, which is how donor research reaches the
-aggregators in section 4 - Candid/GuideStar, Foundant portals, Foundation
-Directory listings. Mistral's chat completions cannot search. On Mistral, donor
-research still works, but only from pages fetched directly off the funder's own
-site, and every run says so in its record rather than quietly presenting
-unsearched output as researched.
+**Both providers can search the live web**, by different routes, and donor
+research behaves the same on either:
 
-That matters unevenly across the seed list: it is fine for a foundation with a
-readable public site, and close to useless for one whose site blocks scrapers
-or renders entirely in JavaScript. Prefer Gemini when quota is available.
+- **Gemini** attaches Google Search as a tool to an ordinary generate call.
+- **Mistral** cannot do that in chat completions at all, but exposes the same
+  capability through its **Agents API** `web_search` connector
+  (`src/ai/search-mistral.ts`). The agent is created once and reused by name;
+  creating one per search would litter the account with identical agents.
+
+Search is what reaches the section 4 aggregators, and it earns its keep beyond
+them. The Community Foundation of Frederick County refuses direct connections
+to `cffredco.org` entirely, and search found that its grants actually live on a
+different domain (`frederickcountygives.org`) - a real funder with real
+deadlines that direct fetching alone reported as having no criteria at all.
+
+Both routes report whether search actually ran, and a provider that answered
+from memory instead is recorded as ungrounded rather than passed off as
+researched.
 
 A note on Gemini quota, since it is easy to lose an hour here: a perfectly valid
 API key on a Google Cloud project with no billing and no free-tier grant returns
@@ -212,13 +219,32 @@ false "skip".
 **Scoring is sequential.** The Gemini free tier rate-limits hard enough that a
 parallel fan-out over a full donor list fails most of its calls.
 
+## Running on a free-tier key
+
+Free Mistral keys meter **tokens** per minute, not just requests, and a web
+search response is token-heavy. Two things follow, both already handled:
+
+- Every model call retries on 429 with linear backoff (`src/ai/retry.ts`).
+  Linear rather than exponential, because per-minute limits refill on a fixed
+  schedule - waiting a minute in total beats waiting sixteen.
+- `npm run demo` pauses between donors (`DEMO_PAUSE_MS`, default 20s). Without
+  it, research exhausts the token window around the fourth donor and every
+  remaining one fails, which reads as broken research rather than a quota
+  ceiling.
+
+A run that still comes back empty leaves the donor marked unresearched, so
+simply running the demo again picks up exactly the ones that failed.
+
+One quota-shaped failure is deliberately NOT retried: a Gemini project whose
+quota limit is literally `0` fails immediately with a message saying so. No
+amount of backoff adds headroom to a project that has none.
+
 ## Known limitations
 
 - **Some funder sites cannot be fetched.** `cffredco.org` refuses our requests
   outright (the connection fails, not a 403), and JS-only sites reduce to an
-  empty shell. On Gemini the Search-grounded pass covers those, which is why
-  both run on every refresh; on Mistral there is no fallback and the funder
-  simply comes back with no criteria, labelled as such.
+  empty shell. The search pass covers those, which is why both run on every
+  refresh.
 - **Not every donor researches successfully, by design.** A run that finds
   nothing records why and proposes nothing, rather than inventing plausible
   criteria. Expect roughly the funders with readable public sites to work.
@@ -231,8 +257,9 @@ parallel fan-out over a full donor list fails most of its calls.
   data goes in.
 - **No file storage.** Compliance items hold a link to a document, not the
   document.
-- **On Mistral, donor research cannot search the web** - see the AI provider
-  note above. It reads the funder's own site and nothing else.
+- **The section 4 databases are still reached only through search**, not
+  through accounts or APIs. Direct Foundant/Candid integration needs
+  subscriptions and a terms-of-service review.
 - **No pooling on macOS.** See the connection-pooling note above.
 
 ## Open questions for the grants expert (§5)
