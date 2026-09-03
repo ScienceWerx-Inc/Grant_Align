@@ -4,6 +4,9 @@ import { prisma } from '@/lib/db';
 import { WorkflowDiagram } from '@/components/landing/Diagram';
 import { getSessionUser, homePathFor } from '@/lib/auth';
 import { SampleMatch } from '@/components/landing/SampleMatch';
+import { Starfield } from '@/components/landing/Orb';
+import { MatchArtwork } from '@/components/landing/Artwork';
+import { FloatingStat } from '@/components/landing/FloatingStat';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,120 +83,135 @@ const FEATURES = [
  * blank for over a second. Suspense lets the static half paint straight away
  * and the numbers arrive when they arrive.
  */
-async function HeroData() {
+/**
+ * The cards that float over the hero visual.
+ *
+ * Live data, positioned to overlap the orb. Everything here is real: the match
+ * is the strongest one currently in the database, and the funder count is a
+ * count. A hero whose entire claim is "checkable verdicts" cannot be decorated
+ * with invented figures.
+ */
+async function HeroCards() {
   const stats = await landingData();
   if (!stats) return null;
 
+  const researchedPercent =
+    stats.donors > 0 ? Math.round((stats.researched / stats.donors) * 100) : 0;
+
   return (
     <>
-      <dl className="mt-12 grid max-w-xl grid-cols-2 gap-6 sm:grid-cols-4">
-        {[
-          [stats.donors, 'regional funders'],
-          [stats.researched, 'researched live'],
-          [stats.seekers, 'non-profit profiles'],
-          [stats.matches, 'pairings evaluated'],
-        ].map(([value, label]) => (
-          <div key={label as string}>
-            <dt className="text-2xl font-semibold tracking-tight">{value as number}</dt>
-            <dd className="mt-0.5 text-xs text-muted">{label as string}</dd>
-          </div>
-        ))}
-      </dl>
+      <FloatingStat
+        label="Regional funders"
+        value={`${stats.researched} of ${stats.donors} researched from live sources`}
+        meter={researchedPercent}
+        href="#engine"
+        className="left-0 top-[3rem] hidden lg:block"
+      />
 
       {stats.sample && (
-        <div className="mt-12 lg:absolute lg:right-6 lg:top-1/2 lg:mt-0 lg:w-[26rem] lg:-translate-y-1/2 lg:pl-4">
-          <SampleMatch match={stats.sample} seeker={stats.sample.seeker} donor={stats.sample.donor} />
-        </div>
+        <FloatingStat
+          label="Strongest match"
+          value={`${stats.sample.score} · ${stats.sample.seeker.name}`}
+          meter={stats.sample.score}
+          href="#how"
+          className="right-0 top-[8rem] hidden lg:block"
+        />
       )}
+
+      <FloatingStat
+        label="Pairings evaluated"
+        value={`${stats.matches} across ${stats.seekers} non-profit profiles`}
+        href="#how"
+        className="left-0 top-[13rem] hidden xl:block"
+      />
     </>
   );
 }
 
-/** Keeps the hero's height stable while the numbers load. */
-function HeroDataSkeleton() {
-  return (
-    <dl className="mt-12 grid max-w-xl grid-cols-2 gap-6 sm:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <div className="h-7 w-12 animate-pulse rounded bg-line/70" />
-          <div className="h-2.5 w-20 animate-pulse rounded bg-line/70" />
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 export default async function LandingPage() {
-  // Signed-in visitors get their own workspace rather than /dashboard, which
-  // only staff can load.
-  const user = await getSessionUser();
-  const appHref = user ? homePathFor(user) : '/login';
-
   return (
-    <div className="bg-white">
-      <header className="sticky top-0 z-20 border-b border-line bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3.5">
-          <span className="text-sm font-semibold tracking-tight">
-            Grant<span className="text-brand">Align</span>
+    <div className="min-h-screen bg-night-950 text-white antialiased">
+      <header className="absolute inset-x-0 top-0 z-30">
+        <div className="mx-auto flex max-w-6xl items-center px-6 py-6">
+          <span className="text-[17px] font-semibold tracking-tight">
+            Grant<span className="text-glow">Align</span>
           </span>
-          <nav className="ml-auto flex items-center gap-1">
-            <a href="#how" className="hidden rounded-md px-3 py-1.5 text-sm text-muted transition hover:text-ink sm:block">How it works</a>
-            <a href="#engine" className="hidden rounded-md px-3 py-1.5 text-sm text-muted transition hover:text-ink sm:block">The engine</a>
-            <Link href={appHref} className="btn-primary ml-2">
-              {user ? 'Open the app' : 'Sign in'}
-            </Link>
+
+          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 md:flex">
+            <a href="#problem" className="text-sm text-white/70 transition hover:text-white">Why</a>
+            <a href="#how" className="text-sm text-white/70 transition hover:text-white">How it works</a>
+            <a href="#engine" className="text-sm text-white/70 transition hover:text-white">The engine</a>
           </nav>
+
+          <div className="ml-auto flex items-center gap-2">
+            <Link href="/login" className="pill px-5 py-2.5 text-white/80 hover:bg-white/[0.06] hover:text-white">
+              Login
+            </Link>
+            <Link href="/login" className="pill-light px-6 py-2.5">Sign in</Link>
+          </div>
         </div>
       </header>
 
       {/* Hero */}
-      <section className="border-b border-line bg-gradient-to-b from-brand-light/50 to-white">
-        <div className="relative mx-auto max-w-6xl px-6 py-20 sm:py-24">
-          <div className="lg:max-w-[38rem]">
-          <p className="mb-4 inline-flex items-center rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-brand-dark">
-            Frederick County, Maryland
-          </p>
-          <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-            Know which grants to apply for, and which to skip.
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted">
-            Grant Align matches local non-profits to regional funders on operational reality — what an
-            organization actually does, and explicitly does not do — instead of the mission-statement
-            language that makes every applicant look the same.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href={user ? appHref : '/signup?role=seeker'} className="btn-primary px-5 py-2.5">
-              I run a non-profit
-            </Link>
-            <Link href={user ? appHref : '/signup?role=donor'} className="btn-secondary px-5 py-2.5">
-              I fund non-profits
-            </Link>
-          </div>
+      <section className="relative isolate overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+          <div className="absolute left-[-14rem] top-[-16rem] h-[42rem] w-[46rem] rounded-full bg-[radial-gradient(closest-side,rgba(122,104,190,0.28),transparent)] blur-3xl" />
+          <div className="absolute right-[-10rem] top-[-10rem] h-[34rem] w-[38rem] rounded-full bg-[radial-gradient(closest-side,rgba(77,159,214,0.18),transparent)] blur-3xl" />
+          <Starfield />
+        </div>
 
-            <Suspense fallback={<HeroDataSkeleton />}>
-              <HeroData />
-            </Suspense>
+        <div className="relative mx-auto max-w-6xl px-6 pb-8 pt-32 text-center sm:pt-36">
+          <h1 className="mx-auto max-w-4xl text-display font-semibold">
+            Know Which Grants
+            <br />
+            To Apply For
+          </h1>
+
+          <p className="mx-auto mt-7 max-w-xl text-[15px] leading-relaxed text-white/55">
+            Matching local non-profits to regional funders on what an organization actually does,
+            and explicitly does not do.. powered by Grant Align
+          </p>
+
+          <div className="mt-9 flex justify-center">
+            <Link href="/login" className="pill-light px-8 py-3.5 text-[15px]">
+              Sign In &amp; Match
+            </Link>
           </div>
         </div>
+
+        {/* The artwork, with the cards overlapping it. */}
+        <div className="relative -mt-2">
+          <div className="mx-auto max-w-[48rem] px-6">
+            <MatchArtwork />
+          </div>
+
+          <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-full max-w-6xl px-6">
+            <div className="pointer-events-auto">
+              <Suspense fallback={null}>
+                <HeroCards />
+              </Suspense>
+            </div>
+          </div>
+        </div>
+
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-b from-transparent to-night-950" />
       </section>
 
       {/* Problem */}
-      <section className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-16">
-          <div className="grid gap-10 lg:grid-cols-[1fr,1.2fr]">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight">
-                The scarcest thing a small non-profit has is grant-writing hours.
-              </h2>
-            </div>
-            <div className="space-y-4 text-[15px] leading-relaxed text-muted">
+      <section id="problem" className="border-t border-white/[0.07]">
+        <div className="mx-auto max-w-6xl px-6 py-24">
+          <div className="grid gap-12 lg:grid-cols-[0.9fr,1.1fr]">
+            <h2 className="text-3xl font-semibold leading-tight tracking-tight">
+              The scarcest thing a small non-profit has is grant-writing hours.
+            </h2>
+            <div className="space-y-5 text-[15px] leading-relaxed text-white/55">
               <p>
                 Two organizations write nearly identical mission statements and do completely
                 different work. A funder publishes guidelines that say what it supports but rarely
                 what it quietly never funds. So applications get written on hope, and most of them
                 were never eligible.
               </p>
-              <p className="text-ink">
+              <p className="text-white/80">
                 The information that decides a grant is the information nobody writes down: the
                 boundaries. Who you turn away. What you refer elsewhere. What a funder has declined
                 three years running. Grant Align is built to ask for exactly that, from both sides,
@@ -205,31 +223,31 @@ export default async function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section id="how" className="border-b border-line bg-surface">
-        <div className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
-          <p className="mt-2 max-w-2xl text-[15px] text-muted">
+      <section id="how" className="border-t border-white/[0.07] bg-night-900/40">
+        <div className="mx-auto max-w-6xl px-6 py-24">
+          <h2 className="text-3xl font-semibold tracking-tight">How it works</h2>
+          <p className="mt-3 max-w-xl text-[15px] text-white/55">
             One platform, two sides. Both feed the same evaluation.
           </p>
 
-          <div className="mt-10 grid gap-8 lg:grid-cols-2">
+          <div className="mt-12 grid gap-6 lg:grid-cols-2">
             {[
               ['For grant seekers', SEEKER_STEPS],
               ['For grant givers', DONOR_STEPS],
             ].map(([heading, steps]) => (
-              <div key={heading as string} className="card p-6">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-brand">
+              <div key={heading as string} className="glass p-8">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-glow">
                   {heading as string}
                 </h3>
-                <ol className="mt-5 space-y-5">
+                <ol className="mt-7 space-y-6">
                   {(steps as typeof SEEKER_STEPS).map((step, i) => (
                     <li key={step.title} className="flex gap-4">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-light text-xs font-semibold text-brand-dark">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-xs font-semibold text-white/80">
                         {i + 1}
                       </span>
                       <div>
-                        <p className="text-sm font-medium">{step.title}</p>
-                        <p className="mt-1 text-sm leading-relaxed text-muted">{step.body}</p>
+                        <p className="text-[15px] font-medium">{step.title}</p>
+                        <p className="mt-1.5 text-sm leading-relaxed text-white/55">{step.body}</p>
                       </div>
                     </li>
                   ))}
@@ -241,23 +259,23 @@ export default async function LandingPage() {
       </section>
 
       {/* Engine */}
-      <section id="engine" className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-semibold tracking-tight">Inside the matching engine</h2>
-          <p className="mt-2 max-w-2xl text-[15px] text-muted">
-            Six weighted dimensions rather than one opaque number, so a seeker can see which one sank
-            a match and whether it is fixable.
+      <section id="engine" className="border-t border-white/[0.07]">
+        <div className="mx-auto max-w-6xl px-6 py-24">
+          <h2 className="text-3xl font-semibold tracking-tight">Inside the matching engine</h2>
+          <p className="mt-3 max-w-xl text-[15px] text-white/55">
+            Six weighted dimensions rather than one opaque number, so a seeker can see which one
+            sank a match and whether it is fixable.
           </p>
 
-          <div className="mt-10 rounded-xl border border-line bg-white p-6">
+          <div className="glass mt-12 p-8">
             <WorkflowDiagram />
           </div>
 
-          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
             {FEATURES.map(([title, body]) => (
-              <div key={title} className="rounded-lg border border-line p-5">
-                <h3 className="text-sm font-semibold">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
+              <div key={title} className="glass p-7">
+                <h3 className="text-[15px] font-medium">{title}</h3>
+                <p className="mt-2.5 text-sm leading-relaxed text-white/55">{body}</p>
               </div>
             ))}
           </div>
@@ -265,33 +283,29 @@ export default async function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-brand-dark">
-        <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-6 py-14 sm:flex-row sm:items-center sm:justify-between">
+      <section className="relative isolate overflow-hidden border-t border-white/[0.07]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[26rem] w-[52rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(77,159,214,0.22),transparent)] blur-2xl"
+        />
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-8 px-6 py-20 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight text-white">
+            <h2 className="text-2xl font-semibold tracking-tight">
               See it against real Frederick County funders.
             </h2>
-            <p className="mt-1.5 text-sm text-white/70">
-              Live criteria, real filings, and verdicts you can argue with.
+            <p className="mt-2 text-sm text-white/55">
+              Live criteria, real IRS filings, and verdicts you can argue with.
             </p>
           </div>
-          <Link
-            href={appHref}
-            className="btn rounded-md bg-white px-5 py-2.5 font-medium text-brand-dark hover:bg-white/90"
-          >
-            {user ? 'Open the app' : 'Get started'}
-          </Link>
+          <Link href="/login" className="pill-light shrink-0">Sign in</Link>
         </div>
       </section>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-8 text-xs text-muted">
-          <span className="font-medium text-ink">GrantAlign</span>
+      <footer className="border-t border-white/[0.07]">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-10 text-xs text-white/40">
+          <span className="font-medium text-white/70">GrantAlign</span>
           <span>Prototype — Frederick County, MD</span>
-          <Link href={appHref} className="ml-auto hover:text-ink">
-            {user ? 'Your workspace' : 'Sign in'}
-          </Link>
-          {!user && <Link href="/signup" className="hover:text-ink">Create an account</Link>}
+          <Link href="/login" className="ml-auto transition hover:text-white">Sign in</Link>
         </div>
       </footer>
     </div>

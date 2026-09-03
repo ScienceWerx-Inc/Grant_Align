@@ -40,7 +40,7 @@ export function LoginForm({ next }: { next?: string }) {
   return (
     <form onSubmit={onSubmit} className="mt-8 space-y-4">
       <div>
-        <label className="label" htmlFor="email">Email</label>
+        <label className="mb-1 block text-xs font-medium text-white/60" htmlFor="email">Email</label>
         <input
           id="email"
           type="email"
@@ -48,11 +48,11 @@ export function LoginForm({ next }: { next?: string }) {
           required
           value={email}
           onChange={e => setEmail(e.target.value)}
-          className="input"
+          className="w-full rounded-lg border border-white/12 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-glow/60 focus:ring-2 focus:ring-glow/20"
         />
       </div>
       <div>
-        <label className="label" htmlFor="password">Password</label>
+        <label className="mb-1 block text-xs font-medium text-white/60" htmlFor="password">Password</label>
         <input
           id="password"
           type="password"
@@ -60,13 +60,17 @@ export function LoginForm({ next }: { next?: string }) {
           required
           value={password}
           onChange={e => setPassword(e.target.value)}
-          className="input"
+          className="w-full rounded-lg border border-white/12 bg-white/[0.04] px-3 py-2.5 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-glow/60 focus:ring-2 focus:ring-glow/20"
         />
       </div>
 
-      {error && <p className="rounded-md bg-skip/10 px-3 py-2 text-xs text-skip">{error}</p>}
+      {error && (
+        <p className="rounded-lg border border-skip-dark/30 bg-skip-dark/10 px-3 py-2 text-xs text-skip-dark">
+          {error}
+        </p>
+      )}
 
-      <button type="submit" disabled={busy} className="btn-primary w-full py-2.5">
+      <button type="submit" disabled={busy} className="pill-light w-full">
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
     </form>

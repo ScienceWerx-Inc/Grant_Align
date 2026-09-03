@@ -15,7 +15,6 @@ const DIM_LABEL = new Map<string, string>(DIMENSIONS.map(d => [d.key, d.label]))
  * Deliberately live data rather than an illustration: this is a system whose
  * whole claim is that its verdicts are specific and checkable, so a mocked-up
  * example with invented numbers would undercut the pitch it is meant to make.
- * If no match exists yet the caller renders nothing at all.
  */
 export function SampleMatch({
   match,
@@ -32,33 +31,35 @@ export function SampleMatch({
   const dimensions = (match.dimensions as unknown as Dimension[]) ?? [];
 
   return (
-    <figure className="w-full rounded-xl border border-line bg-white p-5 shadow-sm">
-      <figcaption className="mb-4 flex items-center justify-between gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted">
+    <figure className="glass-strong w-full p-6 shadow-2xl shadow-black/40">
+      <figcaption className="mb-5 flex items-center justify-between gap-3">
+        <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/45">
           A real evaluation
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-apply/10 px-2.5 py-1 text-xs font-semibold text-apply ring-1 ring-apply/20">
-          Apply <span className="tabular-nums opacity-70">{match.score}</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-apply-dark/15 px-3 py-1 text-xs font-semibold text-apply-dark ring-1 ring-apply-dark/30">
+          Apply <span className="tabular-nums opacity-80">{match.score}</span>
         </span>
       </figcaption>
 
-      <p className="text-sm font-medium leading-snug">
+      <p className="text-[15px] font-medium leading-snug text-white">
         {seeker.name}
-        <span className="mx-1.5 text-muted">→</span>
+        <span className="mx-2 text-white/35">→</span>
         {donor.name}
       </p>
-      <p className="mt-1.5 text-sm leading-relaxed text-muted">{match.headline}</p>
+      <p className="mt-2 text-sm leading-relaxed text-white/55">{match.headline}</p>
 
-      <ul className="mt-5 space-y-2">
+      <ul className="mt-6 space-y-3">
         {dimensions.map(dimension => (
           <li key={dimension.key}>
             <div className="flex items-baseline justify-between gap-3 text-[11px]">
-              <span className="font-medium">{DIM_LABEL.get(dimension.key) ?? dimension.key}</span>
-              <span className="tabular-nums text-muted">{dimension.score}</span>
+              <span className="font-medium text-white/75">
+                {DIM_LABEL.get(dimension.key) ?? dimension.key}
+              </span>
+              <span className="tabular-nums text-white/45">{dimension.score}</span>
             </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
+            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10">
               <div
-                className="h-full rounded-full bg-brand"
+                className="h-full rounded-full bg-gradient-to-r from-glow to-white/80"
                 style={{ width: `${Math.max(0, Math.min(100, dimension.score))}%` }}
               />
             </div>
