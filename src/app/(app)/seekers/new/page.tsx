@@ -1,7 +1,11 @@
 import { createSeeker } from '@/lib/actions';
 import { Card, PageHeader } from '@/components/ui';
+import { requireStaff } from '@/lib/auth';
 
-export default function NewSeekerPage() {
+export default async function NewSeekerPage() {
+  // Only staff create organizations; membership is granted, not self-served.
+  await requireStaff();
+
   return (
     <>
       <PageHeader

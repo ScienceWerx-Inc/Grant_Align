@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
+import { requireOrgAccess } from '@/lib/auth';
 import { Card, Field, PageHeader } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
 import { ActionButton } from '@/components/ActionButton';
@@ -14,6 +15,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function DonorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // Checked before the record is read. The id comes from the URL, which is the
+  // most likely route for one organization's data to reach another.
+  await requireOrgAccess(id);
 
   const org = await prisma.organization.findUnique({
     where: { id },

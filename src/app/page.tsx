@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { WorkflowDiagram } from '@/components/landing/Diagram';
+import { getSessionUser, homePathFor } from '@/lib/auth';
 import { SampleMatch } from '@/components/landing/SampleMatch';
 
 export const dynamic = 'force-dynamic';
@@ -123,6 +124,10 @@ function HeroDataSkeleton() {
 }
 
 export default async function LandingPage() {
+  // Signed-in visitors get their own workspace rather than /dashboard, which
+  // only staff can load.
+  const user = await getSessionUser();
+  const appHref = user ? homePathFor(user) : '/login';
 
   return (
     <div className="bg-white">
@@ -134,7 +139,9 @@ export default async function LandingPage() {
           <nav className="ml-auto flex items-center gap-1">
             <a href="#how" className="hidden rounded-md px-3 py-1.5 text-sm text-muted transition hover:text-ink sm:block">How it works</a>
             <a href="#engine" className="hidden rounded-md px-3 py-1.5 text-sm text-muted transition hover:text-ink sm:block">The engine</a>
-            <Link href="/dashboard" className="btn-primary ml-2">Open the app</Link>
+            <Link href={appHref} className="btn-primary ml-2">
+              {user ? 'Open the app' : 'Sign in'}
+            </Link>
           </nav>
         </div>
       </header>
@@ -155,8 +162,12 @@ export default async function LandingPage() {
             language that makes every applicant look the same.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/seekers" className="btn-primary px-5 py-2.5">I run a non-profit</Link>
-            <Link href="/donors" className="btn-secondary px-5 py-2.5">I fund non-profits</Link>
+            <Link href={user ? appHref : '/signup?role=seeker'} className="btn-primary px-5 py-2.5">
+              I run a non-profit
+            </Link>
+            <Link href={user ? appHref : '/signup?role=donor'} className="btn-secondary px-5 py-2.5">
+              I fund non-profits
+            </Link>
           </div>
 
             <Suspense fallback={<HeroDataSkeleton />}>
@@ -265,10 +276,10 @@ export default async function LandingPage() {
             </p>
           </div>
           <Link
-            href="/dashboard"
+            href={appHref}
             className="btn rounded-md bg-white px-5 py-2.5 font-medium text-brand-dark hover:bg-white/90"
           >
-            Open the app
+            {user ? 'Open the app' : 'Get started'}
           </Link>
         </div>
       </section>
@@ -277,9 +288,10 @@ export default async function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-8 text-xs text-muted">
           <span className="font-medium text-ink">GrantAlign</span>
           <span>Prototype — Frederick County, MD</span>
-          <Link href="/dashboard" className="ml-auto hover:text-ink">Dashboard</Link>
-          <Link href="/seekers" className="hover:text-ink">Grant seekers</Link>
-          <Link href="/donors" className="hover:text-ink">Grant givers</Link>
+          <Link href={appHref} className="ml-auto hover:text-ink">
+            {user ? 'Your workspace' : 'Sign in'}
+          </Link>
+          {!user && <Link href="/signup" className="hover:text-ink">Create an account</Link>}
         </div>
       </footer>
     </div>

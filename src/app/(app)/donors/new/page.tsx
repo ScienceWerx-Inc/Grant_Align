@@ -1,7 +1,11 @@
 import { createDonor } from '@/lib/actions';
 import { Card, PageHeader } from '@/components/ui';
+import { requireStaff } from '@/lib/auth';
 
-export default function NewDonorPage() {
+export default async function NewDonorPage() {
+  // Only staff create organizations; membership is granted, not self-served.
+  await requireStaff();
+
   return (
     <>
       <PageHeader

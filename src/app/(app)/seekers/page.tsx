@@ -1,11 +1,16 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
+import { requireStaff } from '@/lib/auth';
 import { Card, EmptyState, PageHeader } from '@/components/ui';
 import { REQUIRED_COMPLIANCE } from '@/lib/profile-text';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SeekersPage() {
+  // A directory of every organization is a staff view. A seeker has no
+  // business reading other non-profits' profiles, nor a funder its peers'.
+  await requireStaff();
+
   const seekers = await prisma.organization.findMany({
     where: { kind: 'SEEKER' },
     include: {

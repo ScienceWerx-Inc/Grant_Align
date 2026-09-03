@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { runMatches } from '@/lib/matching';
 import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
+import { canAccessOrg, getSessionUser } from '@/lib/auth';
 
 export const maxDuration = 300;
 
@@ -25,6 +26,22 @@ export async function POST(request: Request) {
   }
 
   const { seekerId, donorId } = (await request.json()) as { seekerId?: string; donorId?: string };
+
+  const user = await getSessionUser();
+  if (!user) return Response.json({ error: 'Not signed in.' }, { status: 401 });
+
+  // An unscoped run walks every pair in the system and costs a model call per
+  // pair, so it is staff-only. A scoped run is allowed for the organization
+  // that owns the scope.
+  const scope = seekerId ?? donorId;
+  if (!scope) {
+    if (user.role !== 'STAFF') {
+      return Response.json({ error: 'Only staff can run every pairing.' }, { status: 403 });
+    }
+  } else if (!canAccessOrg(user, scope)) {
+    return Response.json({ error: 'Not authorized for that organization.' }, { status: 403 });
+  }
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
+import { requireUser } from '@/lib/auth';
 import { Card, EmptyState, PageHeader, VerdictBadge } from '@/components/ui';
 import { MatchRunner } from '@/components/MatchRunner';
 import { MatchCard } from '@/components/MatchList';
@@ -12,9 +13,36 @@ export const dynamic = 'force-dynamic';
  * twenty hours of grant writing go.
  */
 export default async function MatchesPage() {
+  const user = await requireUser();
+
+  /*
+   * Matches are grouped by seeker for everyone, but scoped three ways:
+   *
+   *  - STAFF see every pairing.
+   *  - A SEEKER sees only its own row.
+   *  - A DONOR sees seekers matched against IT, and only those matches - hence
+   *    the nested `where` on seekerMatches. Without it a funder would receive
+   *    every seeker's evaluations against every other funder, which is
+   *    commercially sensitive in both directions.
+   *
+   * A user with no organization yet matches nothing rather than everything.
+   */
+  const isStaff = user.role === 'STAFF';
+  const donorFilter = user.role === 'DONOR' ? { donorOrgId: user.orgId ?? '__none__' } : {};
+
   const seekers = await prisma.organization.findMany({
-    where: { kind: 'SEEKER', seekerMatches: { some: {} } },
-    include: { seekerMatches: { include: { donor: true }, orderBy: { score: 'desc' } } },
+    where: {
+      kind: 'SEEKER',
+      seekerMatches: { some: donorFilter },
+      ...(user.role === 'SEEKER' ? { id: user.orgId ?? '__none__' } : {}),
+    },
+    include: {
+      seekerMatches: {
+        where: donorFilter,
+        include: { donor: true },
+        orderBy: { score: 'desc' },
+      },
+    },
     orderBy: { name: 'asc' },
   });
 
@@ -31,9 +59,11 @@ export default async function MatchesPage() {
         }
       />
 
-      <div className="mb-6">
-        <MatchRunner />
-      </div>
+      {isStaff && (
+        <div className="mb-6">
+          <MatchRunner />
+        </div>
+      )}
 
       {seekers.length === 0 ? (
         <EmptyState

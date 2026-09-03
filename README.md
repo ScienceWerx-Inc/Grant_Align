@@ -194,6 +194,50 @@ turned `"Frederick County, MD"` into two separate geographies and an exclusion
 of `"grant requests under $2,500"` into `"grant requests under $2"` plus a stray
 `"500"`.
 
+## Authentication and authorization
+
+Supabase Auth handles identity; `src/lib/auth.ts` handles authorization. Three
+roles:
+
+| Role | Sees |
+| --- | --- |
+| `SEEKER` | Exactly one non-profit - its own profile, compliance, matches, 1-pager |
+| `DONOR` | Exactly one funder - its own criteria, research history, and the seekers matched against **it** |
+| `STAFF` | Everything, plus the CRM, the People page and full matching runs |
+
+**Row-level security is not the boundary, and cannot be.** Prisma connects as
+the database owner, which bypasses RLS entirely - a Postgres policy would have
+no effect on any query this application makes. Every access decision is made in
+application code instead. That means three things have to be true, and all three
+are enforced:
+
+1. **Pages** check before reading. `requireOrgAccess(id)` runs on the id from
+   the URL, which is the most likely route for one organization's data to reach
+   another.
+2. **Route handlers** repeat the check. A page guard does nothing for
+   `POST /api/interview`, which is reachable directly with any `orgId`.
+3. **Server actions** repeat it again. Each one is a public HTTP endpoint, so
+   the form that rendered it is irrelevant - without a guard, any signed-in user
+   could post another organization's id and edit its profile.
+
+The pure decision functions live in `src/lib/auth-rules.ts` so they can be
+tested, and `tests/auth-rules.test.ts` covers the cases where a plausible
+implementation fails **open** - notably an account with no organization, where
+`user.orgId === orgId` would match any record with a null orgId, and where an
+empty list filter would return every row rather than none.
+
+`STAFF` is deliberately absent from the sign-up form. It is granted from the
+People page or directly in the database, so self-registration can never mint an
+administrator.
+
+### The known gap
+
+Onboarding lets a signed-in user **claim** an organization without
+verification. Anyone could therefore claim to work at a foundation and read its
+private giving notes. Before real data goes in, this needs staff approval or
+email-domain matching. It is called out on the onboarding page itself rather
+than left to be discovered.
+
 ## Design decisions worth knowing
 
 **Interviews chase negative scope.** Both interviewers are built to push on what
@@ -312,9 +356,8 @@ amount of backoff adds headroom to a project that has none.
   GuideStar and the Foundation Directory are hit through Google Search
   grounding, not through accounts or APIs. Direct integration needs
   subscriptions and a terms-of-service review before it is built.
-- **No authentication.** Every visitor sees every organization. Real deployment
-  needs auth and a seeker/donor/staff permission split before any non-profit's
-  data goes in.
+- **Organization claims are unverified** - see the gap noted under
+  Authentication above.
 - **No file storage.** Compliance items hold a link to a document, not the
   document.
 - **The section 4 databases are still reached only through search**, not

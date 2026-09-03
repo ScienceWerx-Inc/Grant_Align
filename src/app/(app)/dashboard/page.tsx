@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { Card, EmptyState, PageHeader, SkeletonCard, SkeletonStats, StatTile, VerdictBadge } from '@/components/ui';
 import { REQUIRED_COMPLIANCE } from '@/lib/profile-text';
+import { requireStaff } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,7 +167,11 @@ async function NeedsAttention() {
   );
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  // A cross-organization overview is inherently a staff view; seekers and
+  // funders are sent to their own workspace by homePathFor.
+  await requireStaff();
+
   return (
     <>
       <PageHeader

@@ -24,6 +24,8 @@
     "@genkit-ai/compat-oai": "^1.42.0",
     "@genkit-ai/google-genai": "^1.42.0",
     "@prisma/client": "^6.1.0",
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.114.0",
     "cheerio": "^1.0.0",
     "genkit": "^1.42.0",
     "next": "15.3.8",

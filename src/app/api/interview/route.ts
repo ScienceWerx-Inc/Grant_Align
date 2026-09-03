@@ -4,6 +4,7 @@ import { interviewTurn, type InterviewMessage } from '@/ai/flows/interviewer';
 import { applyInterviewExtraction } from '@/lib/actions';
 import { renderDonorProfile, renderSeekerProfile, type DonorRecord, type SeekerRecord } from '@/lib/profile-text';
 import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
+import { canAccessOrg, getSessionUser } from '@/lib/auth';
 
 export const maxDuration = 60;
 
@@ -24,6 +25,14 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as { orgId?: string; answer?: string; sessionId?: string };
   if (!body.orgId) return NextResponse.json({ error: 'orgId is required.' }, { status: 400 });
+
+  // Page guards do nothing for a route handler: this endpoint is reachable
+  // directly with any orgId, so it has to make its own decision.
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  if (!canAccessOrg(user, body.orgId)) {
+    return NextResponse.json({ error: 'Not authorized for that organization.' }, { status: 403 });
+  }
 
   const org = await prisma.organization.findUnique({
     where: { id: body.orgId },

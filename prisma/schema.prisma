@@ -16,6 +16,16 @@ enum OrgKind {
   DONOR
 }
 
+enum UserRole {
+  /// Works at a non-profit. Sees only their own organization.
+  SEEKER
+  /// Works at a funder. Sees only their own organization.
+  DONOR
+  /// Runs the platform. Sees everything, and is the only role that can create
+  /// organizations or link a person to one.
+  STAFF
+}
+
 enum ComplianceType {
   FORM_990
   GOOD_STANDING
@@ -79,11 +89,39 @@ model Organization {
   researchRuns  ResearchRun[]
   seekerMatches Match[] @relation("SeekerMatches")
   donorMatches  Match[] @relation("DonorMatches")
+  users         AppUser[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([kind, name])
+}
+
+/// A person who can sign in, mirroring a Supabase auth user.
+///
+/// `id` is the Supabase `auth.users.id` UUID rather than a generated cuid, so
+/// there is exactly one identity per person and no mapping table to fall out of
+/// sync. Supabase owns credentials and sessions; this row owns authorization -
+/// which role someone has, and which organization they belong to.
+///
+/// Prisma connects as the database owner and therefore bypasses row-level
+/// security, so RLS cannot be the boundary here. Every access decision is made
+/// in application code against this row (see src/lib/auth.ts).
+model AppUser {
+  id    String   @id @db.Uuid
+  email String   @unique
+  name  String?
+  role  UserRole @default(SEEKER)
+
+  /// The organization this person belongs to. Null for STAFF, and for a
+  /// seeker/donor whose membership has not been approved yet.
+  orgId String?
+  org   Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
 }
 
 model Contact {

@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { acceptResearchRun } from '@/lib/donor-refresh';
+import { requireOrgAccess, requireStaff, requireUser } from '@/lib/auth';
 import type { ComplianceStatus, ComplianceType, OrgKind } from '@prisma/client';
 
 function str(form: FormData, key: string): string | null {
@@ -36,7 +37,20 @@ function list(form: FormData, key: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * Authorization for mutations.
+ *
+ * A server action is a public HTTP endpoint. Every one of these takes an orgId
+ * from a form field, and without a check any signed-in user could post another
+ * organization's id and edit its profile - the page guard that rendered the
+ * form is irrelevant by then. `requireOrgAccess` redirects rather than throws,
+ * so a rejected action never silently succeeds.
+ */
+
 export async function createOrganization(kind: OrgKind, form: FormData) {
+  // Creating organizations is a staff act; membership is granted, not claimed.
+  await requireStaff();
+
   const name = str(form, 'name');
   if (!name) throw new Error('An organization name is required.');
 
@@ -84,6 +98,8 @@ export async function createDonor(form: FormData) {
 }
 
 export async function updateOrganization(orgId: string, form: FormData) {
+  await requireOrgAccess(orgId);
+
   const org = await prisma.organization.update({
     where: { id: orgId },
     data: {
@@ -103,6 +119,8 @@ export async function updateOrganization(orgId: string, form: FormData) {
 }
 
 export async function upsertContact(orgId: string, form: FormData) {
+  await requireOrgAccess(orgId);
+
   const name = str(form, 'contactName');
   if (!name) throw new Error('A contact name is required.');
   const isPrimary = form.get('isPrimary') === 'on';
@@ -125,12 +143,22 @@ export async function upsertContact(orgId: string, form: FormData) {
 }
 
 export async function deleteContact(contactId: string) {
+  // Keyed on the contact, not the organization, so the owner has to be looked
+  // up before the delete rather than after it.
+  const existing = await prisma.contact.findUniqueOrThrow({
+    where: { id: contactId },
+    select: { orgId: true },
+  });
+  await requireOrgAccess(existing.orgId);
+
   const contact = await prisma.contact.delete({ where: { id: contactId } });
   revalidatePath(`/seekers/${contact.orgId}`);
   revalidatePath(`/donors/${contact.orgId}`);
 }
 
 export async function updateSeekerProfile(orgId: string, form: FormData) {
+  await requireOrgAccess(orgId);
+
   const data = {
     servesWho: str(form, 'servesWho'),
     doesWhat: str(form, 'doesWhat'),
@@ -154,6 +182,8 @@ export async function updateSeekerProfile(orgId: string, form: FormData) {
 }
 
 export async function updateDonorProfile(orgId: string, form: FormData) {
+  await requireOrgAccess(orgId);
+
   const deadline = str(form, 'nextDeadline');
   const data = {
     fundingFocus: list(form, 'fundingFocus'),
@@ -180,6 +210,12 @@ export async function updateDonorProfile(orgId: string, form: FormData) {
 }
 
 export async function updateCompliance(itemId: string, form: FormData) {
+  const existing = await prisma.complianceItem.findUniqueOrThrow({
+    where: { id: itemId },
+    select: { orgId: true },
+  });
+  await requireOrgAccess(existing.orgId);
+
   const item = await prisma.complianceItem.update({
     where: { id: itemId },
     data: {
@@ -193,6 +229,8 @@ export async function updateCompliance(itemId: string, form: FormData) {
 }
 
 export async function addComplianceItem(orgId: string, form: FormData) {
+  await requireOrgAccess(orgId);
+
   const type = str(form, 'type') as ComplianceType | null;
   if (!type) throw new Error('A document type is required.');
   await prisma.complianceItem.upsert({
@@ -205,6 +243,12 @@ export async function addComplianceItem(orgId: string, form: FormData) {
 
 /** Accepts a research run's proposed criteria into the live donor profile. */
 export async function acceptResearch(runId: string) {
+  const run = await prisma.researchRun.findUniqueOrThrow({
+    where: { id: runId },
+    select: { orgId: true },
+  });
+  await requireOrgAccess(run.orgId);
+
   const orgId = await acceptResearchRun(runId);
   revalidatePath(`/donors/${orgId}`);
 }
@@ -216,6 +260,11 @@ export async function applyInterviewExtraction(
   extracted: Record<string, unknown>,
   complete: boolean,
 ) {
+  // Its only caller already authorized this org, but it is an exported server
+  // action and therefore its own endpoint. Guarded so it cannot be reused
+  // without one.
+  await requireOrgAccess(orgId);
+
   const clean = Object.fromEntries(
     Object.entries(extracted).filter(([, v]) => {
       if (v === null || v === undefined || v === '') return false;
@@ -243,6 +292,10 @@ export async function applyInterviewExtraction(
 }
 
 export async function deleteOrganization(orgId: string) {
+  // Deleting an organization cascades to its matches, research history and
+  // members, so it stays with staff even for one's own organization.
+  await requireStaff();
+
   const org = await prisma.organization.delete({ where: { id: orgId } });
   const base = org.kind === 'SEEKER' ? '/seekers' : '/donors';
   revalidatePath(base);
