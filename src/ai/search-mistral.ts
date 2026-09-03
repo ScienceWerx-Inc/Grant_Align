@@ -144,9 +144,16 @@ export async function mistralWebSearch(prompt: string): Promise<GroundedResearch
 
       if (!response.ok) {
         const detail = (await response.text()).slice(0, 200);
-        const error: any = new Error(`Mistral web search failed: ${response.status} ${detail}`);
-        // withRetry reads `status` to decide what is worth retrying.
-        error.status = response.status;
+        const error: any = new Error(`${response.status} ${detail}`);
+
+        // The free tier caps web searches on a long cycle, separate from the
+        // per-minute token limit, and reports both as 429. Backing off 12-36s
+        // for the search cap is pure waste - it will still be exhausted - so it
+        // is marked unretryable and fails in one attempt instead of four.
+        if (!/web_search rate limit/i.test(detail)) {
+          // withRetry reads `status` to decide what is worth retrying.
+          error.status = response.status;
+        }
         throw error;
       }
 
@@ -176,15 +183,22 @@ export async function mistralWebSearch(prompt: string): Promise<GroundedResearch
 
     return { dossier: text, sources, grounded: true };
   } catch (err: any) {
-    const aborted = err?.name === 'AbortError';
-    return {
-      dossier: '',
-      sources: [],
-      grounded: false,
-      groundingError: aborted
-        ? `Mistral web search timed out after ${SEARCH_TIMEOUT_MS / 1000}s.`
-        : `Mistral web search failed: ${err?.message ?? err}`,
-    };
+    const message = String(err?.message ?? err);
+    let groundingError: string;
+
+    if (err?.name === 'AbortError') {
+      groundingError = `Mistral web search timed out after ${SEARCH_TIMEOUT_MS / 1000}s.`;
+    } else if (/web_search rate limit/i.test(message)) {
+      // Worth naming precisely: this is a different quota from the token limit,
+      // it does not clear in a minute, and it is the one a free key runs out of
+      // first. Reading it as a generic failure sends people debugging the code.
+      groundingError =
+        'Mistral\'s web search quota is exhausted on this key. It is a separate, much smaller allowance than the token limit and does not refill within minutes - wait for it to reset, use a paid tier, or switch to AI_PROVIDER=gemini.';
+    } else {
+      groundingError = `Mistral web search failed: ${message}`;
+    }
+
+    return { dossier: '', sources: [], grounded: false, groundingError };
   } finally {
     clearTimeout(timer);
   }

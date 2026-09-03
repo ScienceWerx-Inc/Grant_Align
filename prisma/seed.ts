@@ -53,17 +53,41 @@ const SEED_DONORS: { name: string; website?: string; city?: string; notes?: stri
     city: 'Frederick',
     notes: 'County community partnership grants; fiscal-year cycle.',
   },
+  // The requirements list two Rotary clubs. Both were dropped from the seed:
+  // neither has a website, and neither resolves to an IRS record ("Carroll
+  // Creek Rotary Club" matches only "Rotary International", whose finances are
+  // a global body's). With no source of any kind they are permanently blank
+  // rows, and a matching engine cannot evaluate a funder it knows nothing
+  // about. Service-club giving is relationship-driven and small; it is better
+  // captured through the donor AI interviewer than through research.
   {
-    name: 'Carroll Creek Rotary Club',
+    name: 'United Way of Frederick County',
+    website: 'https://www.unitedwayfrederick.org',
     city: 'Frederick',
-    notes: 'Service club giving; smaller awards, relationship-driven.',
+    notes: 'Frederick County based. Community impact grants; verified IRS record (EIN 52-0607973).',
   },
   {
-    name: 'Frederick Noon Rotary Club',
-    city: 'Frederick',
-    notes: 'Service club giving; smaller awards, relationship-driven.',
+    name: 'The Harry and Jeanette Weinberg Foundation',
+    website: 'https://hjweinbergfoundation.org',
+    city: 'Baltimore',
+    notes: 'Major Maryland funder of direct services to low-income and vulnerable populations; funds Frederick County organizations.',
+  },
+  {
+    name: 'Marion I. & Henry J. Knott Foundation',
+    website: 'https://www.knottfoundation.org',
+    city: 'Baltimore',
+    notes: 'Maryland-wide funder: education, human services, arts, health.',
+  },
+  {
+    name: 'Nora Roberts Foundation',
+    website: 'https://norarobertsfoundation.org',
+    city: 'Boonsboro',
+    notes: 'Western Maryland author foundation; literacy, children, arts. Verified IRS record (EIN 52-2189081).',
   },
 ];
+
+/** Donors dropped from earlier versions of the seed, removed on re-seed. */
+const RETIRED_DONORS = ['Carroll Creek Rotary Club', 'Frederick Noon Rotary Club'];
 
 async function upsertOrg(kind: OrgKind, name: string, data: Record<string, unknown>) {
   const existing = await prisma.organization.findFirst({ where: { kind, name } });
@@ -74,6 +98,17 @@ async function upsertOrg(kind: OrgKind, name: string, data: Record<string, unkno
 }
 
 async function main() {
+  // Remove retired seed donors and everything hanging off them, so re-seeding
+  // an existing database converges on the current list rather than accumulating.
+  const retired = await prisma.organization.findMany({
+    where: { kind: 'DONOR', name: { in: RETIRED_DONORS } },
+    select: { id: true, name: true },
+  });
+  for (const org of retired) {
+    await prisma.organization.delete({ where: { id: org.id } });
+    console.log(`Removed retired donor: ${org.name}`);
+  }
+
   for (const donor of SEED_DONORS) {
     const org = await upsertOrg('DONOR', donor.name, {
       website: donor.website ?? null,

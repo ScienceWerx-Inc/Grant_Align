@@ -219,10 +219,66 @@ false "skip".
 **Scoring is sequential.** The Gemini free tier rate-limits hard enough that a
 parallel fan-out over a full donor list fails most of its calls.
 
+## The research engine
+
+Donor research draws on **three independent sources**, gathered in parallel and
+merged into one dossier for extraction. Independence is the design: web search
+is the source with a hard quota and the one most likely to be unavailable, and
+for a while it was the only route to a funder with an unreadable or absent
+website.
+
+| Source | Needs a key | Covers |
+| --- | --- | --- |
+| **Site crawl** (`src/ai/web-research.ts`) | no | The funder's own guidelines, verbatim |
+| **IRS filings** (`src/research/propublica.ts`) | no | Legal status, scale, grants actually paid |
+| **Web search** (Gemini grounding / Mistral Agents) | yes | Aggregators, portals, anything off-site |
+
+### Site crawl
+
+URL discovery tries three strategies in order: sitemaps declared in robots.txt,
+then `/sitemap.xml` and its common variants (following sitemap indexes), then a
+list of guessed paths. Asking the site what pages it has beats guessing -
+Delaplaine's sitemap names `/apply-for-funding/`, which no reasonable guess list
+contains - but guessing stays as a fallback because plenty of foundation sites
+publish no sitemap at all.
+
+### IRS filings
+
+ProPublica's Nonprofit Explorer is free, needs no key, and covers every US
+tax-exempt organization. It is what makes research work for the four seed donors
+with no website: William Cross Foundation has no site and was a guaranteed blank
+before, and now returns a grounded record showing a private foundation in
+Frederick paying out $1.3m-$6.9m a year. Requirements section 4 lists
+Candid/GuideStar for this data; this reaches the same 990 filings from the
+public source, without a subscription.
+
+Two things this source must never do, both enforced and tested:
+
+- **Match the wrong organization.** "Serini Foundation" matches a Helen J Serini
+  Foundation two counties away, and "Carroll Creek Rotary Club" matches plain
+  "Rotary International". Attaching either one's finances to a seed donor would
+  be invisible once saved, so candidates are scored on distinctive name tokens
+  plus city, and anything below medium confidence is discarded rather than used.
+- **Be read as giving guidance.** Grants paid is an annual total across many
+  awards. A foundation paying out $6.9m may write a hundred $20k cheques, so
+  populating `grantMax` from it misrepresents the funder by two orders of
+  magnitude. The extraction prompt forbids deriving per-award sizes from filing
+  totals; they go in `givingNotes`, labelled as annual totals.
+
 ## Running on a free-tier key
 
-Free Mistral keys meter **tokens** per minute, not just requests, and a web
-search response is token-heavy. Two things follow, both already handled:
+Free Mistral keys enforce **two separate limits**, and they behave differently:
+
+- **Tokens per minute.** A web search response is token-heavy, so research runs
+  exhaust this quickly. It refills within a minute, so backing off works.
+- **Web searches per cycle.** A much smaller allowance on a far longer cycle -
+  roughly a handful of searches, then 429 `web_search rate limit reached` on
+  every attempt for hours. Backing off does not help, so this one fails fast
+  with a message saying what it is. In practice this is the limit that decides
+  how many donors a free key can research in a sitting.
+
+Both surface as 429, which is why they are distinguished explicitly rather than
+retried identically. Two things follow, both already handled:
 
 - Every model call retries on 429 with linear backoff (`src/ai/retry.ts`).
   Linear rather than exponential, because per-minute limits refill on a fixed
@@ -233,7 +289,11 @@ search response is token-heavy. Two things follow, both already handled:
   ceiling.
 
 A run that still comes back empty leaves the donor marked unresearched, so
-simply running the demo again picks up exactly the ones that failed.
+simply running the demo again picks up exactly the ones that failed - though
+if the search allowance is what ran out, the re-run needs to wait for it.
+
+**For researching the full seed list in one pass, use a Gemini key with
+billing enabled.** Its search grounding has no comparable per-cycle cap.
 
 One quota-shaped failure is deliberately NOT retried: a Gemini project whose
 quota limit is literally `0` fails immediately with a message saying so. No

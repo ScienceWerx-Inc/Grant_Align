@@ -26,6 +26,7 @@ import * as cheerio from 'cheerio';
 import { ai, AI_PROVIDER, DEFAULT_MODEL, supportsWebSearch } from '@/ai/providers';
 import { mistralWebSearch } from '@/ai/search-mistral';
 import { withRetry } from '@/ai/retry';
+import { discoverUrls, GUESSED_PATHS } from '@/research/sitemap';
 
 export interface ResearchSource {
   title: string;
@@ -48,20 +49,6 @@ const USER_AGENT =
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_PAGE_CHARS = 12_000;
 
-/** Paths worth trying on a foundation site beyond the homepage. */
-const CANDIDATE_PATHS = [
-  '',
-  '/grants',
-  '/grantmaking',
-  '/apply',
-  '/how-to-apply',
-  '/guidelines',
-  '/grant-guidelines',
-  '/funding',
-  '/what-we-fund',
-  '/eligibility',
-  '/faq',
-];
 
 export interface FetchedPage {
   url: string;
@@ -125,9 +112,14 @@ export async function fetchPages(website: string, limit = 5): Promise<FetchedPag
   const pages: FetchedPage[] = home ? [home] : [];
   const seen = new Set(pages.map(p => p.url));
 
-  const targets: string[] = [];
+  // Three discovery strategies, best first. Asking the site what pages it has
+  // beats guessing: Delaplaine's sitemap names /apply-for-funding/, which no
+  // reasonable guess list would contain. Guessing stays as the last resort,
+  // because plenty of foundation sites publish no sitemap at all.
+  const targets: string[] = await discoverUrls(base, 20);
+
   if (home) {
-    // Prefer links the site itself points at.
+    // Then links the site itself points at.
     const $ = cheerio.load(await refetchHtml(home.url));
     $('a[href]').each((_, el) => {
       const href = $(el).attr('href') ?? '';
@@ -141,7 +133,7 @@ export async function fetchPages(website: string, limit = 5): Promise<FetchedPag
       }
     });
   }
-  for (const path of CANDIDATE_PATHS) {
+  for (const path of GUESSED_PATHS) {
     const url = `${base}${path}`;
     if (!targets.includes(url)) targets.push(url);
   }

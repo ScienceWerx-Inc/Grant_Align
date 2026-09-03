@@ -60,10 +60,13 @@ const VERDICT_LABEL: Record<MatchVerdict, string> = {
 export function VerdictBadge({ verdict, score }: { verdict: MatchVerdict; score?: number }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${VERDICT_STYLE[verdict]}`}
+      // Fixed width and no wrapping: "Worth a look" is twice the length of
+      // "Apply", and letting badges size to their content left every row in a
+      // list starting its text at a different x position.
+      className={`inline-flex w-[7.5rem] shrink-0 items-center justify-between gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${VERDICT_STYLE[verdict]}`}
     >
-      {VERDICT_LABEL[verdict]}
-      {score !== undefined && <span className="opacity-70">{score}</span>}
+      <span>{VERDICT_LABEL[verdict]}</span>
+      {score !== undefined && <span className="tabular-nums opacity-70">{score}</span>}
     </span>
   );
 }

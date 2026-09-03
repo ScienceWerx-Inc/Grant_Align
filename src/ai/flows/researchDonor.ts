@@ -21,6 +21,7 @@ import { ai, DEFAULT_MODEL } from '@/ai/providers';
 import { withRetry } from '@/ai/retry';
 import { fetchPages, groundedSearch, type ResearchSource } from '@/ai/web-research';
 import { lenientSchema, normalize, toTags, type FieldSpecs } from '@/ai/coerce';
+import { lookupIrsProfile, renderIrsProfile } from '@/research/propublica';
 
 /**
  * Every field is left untyped in the schema handed to the model and coerced
@@ -146,23 +147,32 @@ export const researchDonor = ai.defineFlow(
     outputSchema: z.any(),
   },
   async ({ name, website, locality }): Promise<DonorResearchResult> => {
-    // Pass 1a: the funder's own pages, fetched directly so guidelines can be
-    // read verbatim rather than through a search snippet.
-    const pages = website ? await fetchPages(website) : [];
+    const [city, state] = locality.split(',').map(part => part.trim());
+
+    // Three independent evidence sources, gathered in parallel. Independence is
+    // the point: web search is the one with a hard quota and the one most
+    // likely to be unavailable, and it used to be the only route to a donor
+    // with an unreadable or absent website. The IRS record needs no key and no
+    // site, so a funder is never a total blank.
+    const [pages, irs, search] = await Promise.all([
+      website ? fetchPages(website) : Promise.resolve([]),
+      lookupIrsProfile(name, { city, state }),
+      groundedSearch(searchPrompt(name, website, locality)),
+    ]);
+
     const fetchedText = pages
       .map(p => `--- SOURCE: ${p.url} (${p.title}) ---\n${p.text}`)
       .join('\n\n');
 
-    // Pass 1b: the aggregators, via Search grounding.
-    const search = await groundedSearch(searchPrompt(name, website, locality));
-
     const dossierParts = [
       fetchedText ? `PAGES FETCHED DIRECTLY FROM THE FUNDER'S SITE:\n${fetchedText}` : '',
+      irs ? renderIrsProfile(irs) : '',
       search.dossier ? `WEB SEARCH FINDINGS:\n${search.dossier}` : '',
     ].filter(Boolean);
 
     const sources: ResearchSource[] = [
       ...pages.map(p => ({ title: p.title || p.url, url: p.url })),
+      ...(irs ? [{ title: `IRS filings: ${irs.name} (EIN ${irs.ein})`, url: irs.sourceUrl }] : []),
       ...search.sources,
     ];
 
@@ -173,9 +183,15 @@ export const researchDonor = ai.defineFlow(
         sources,
         grounded: false,
         fetchedUrls: pages.map(p => p.url),
-        error: website
-          ? `No public pages could be fetched from ${website}, and no search findings were available. ${search.groundingError ?? ''}`.trim()
-          : `This donor has no website on file, so there was nothing to fetch. ${search.groundingError ?? ''}`.trim(),
+        error: [
+          website
+            ? `No public pages could be fetched from ${website}.`
+            : 'This donor has no website on file, so there was nothing to fetch.',
+          'No IRS record matched this name with enough confidence to use.',
+          search.groundingError ?? '',
+        ]
+          .filter(Boolean)
+          .join(' '),
       };
     }
 
@@ -193,6 +209,9 @@ Rules:
 - The funder's own published guidelines outrank third-party listings; say so through the confidence field.
 - Exclusions matter as much as focus areas: a wrongly-stated exclusion silently hides eligible applicants, so include one only when a source states it.
 - Never infer a deadline from a past year's date. If the notes give only a stale date, put it in cycleNotes and leave nextDeadline empty.
+- An IRS RECORD block is filing data, not published guidance. It evidences scale and legal status, never focus areas or exclusions: "grants paid $784,456" tells you what the funder can afford, not what it funds.
+- NEVER set grantMin or grantMax from a 990 figure. Grants paid is an annual total spread across many awards - a foundation paying out $6.9m may write a hundred $20k cheques, and recording $6.9m as its largest grant would misrepresent it by two orders of magnitude. Those two fields are for per-award sizes stated in guidelines or evidenced by named individual grants. Put annual totals in givingNotes instead, labelled as annual totals.
+- If the IRS block reports a match confidence below high, treat its numbers as unconfirmed and say so.
 - List every field the notes did not settle in \`unconfirmed\`.`,
       prompt: `FUNDER: ${name}${website ? `\nWEBSITE: ${website}` : ''}\n\nRESEARCH NOTES:\n${dossier}`,
       output: { schema: DonorCriteriaSchema },
@@ -204,9 +223,9 @@ Rules:
       criteria: output ? toCriteria(output) : null,
       dossier,
       sources,
-      // Direct page fetches are grounding in the sense that matters: the text
-      // came off a real page rather than out of model recall.
-      grounded: search.grounded || pages.length > 0,
+      // Grounded means the text came off a real source rather than out of
+      // model recall. A fetched page and an IRS filing both qualify.
+      grounded: search.grounded || pages.length > 0 || irs !== null,
       fetchedUrls: pages.map(p => p.url),
       error: search.groundingError,
     };

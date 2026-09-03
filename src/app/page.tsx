@@ -1,117 +1,258 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
-import { Card, EmptyState, PageHeader, StatTile, VerdictBadge } from '@/components/ui';
-import { REQUIRED_COMPLIANCE } from '@/lib/profile-text';
+import { WorkflowDiagram } from '@/components/landing/Diagram';
+import { SampleMatch } from '@/components/landing/SampleMatch';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardPage() {
-  const [seekers, donors, applyCount, unresearched, topMatches, incomplete] = await Promise.all([
-    prisma.organization.count({ where: { kind: 'SEEKER' } }),
-    prisma.organization.count({ where: { kind: 'DONOR' } }),
-    prisma.match.count({ where: { verdict: 'APPLY' } }),
-    prisma.organization.count({
-      where: {
-        kind: 'DONOR',
-        OR: [{ donorProfile: null }, { donorProfile: { lastResearchedAt: null } }],
-      },
-    }),
-    prisma.match.findMany({
-      where: { verdict: { in: ['APPLY', 'MAYBE'] } },
-      orderBy: { score: 'desc' },
-      take: 6,
-      include: { seeker: true, donor: true },
-    }),
-    prisma.organization.findMany({
-      where: {
-        kind: 'SEEKER',
-        OR: [
-          { seekerProfile: null },
-          { seekerProfile: { interviewComplete: false } },
-          { compliance: { some: { type: { in: REQUIRED_COMPLIANCE }, status: { not: 'VERIFIED' } } } },
-        ],
-      },
-      include: { seekerProfile: true, compliance: true },
-      take: 6,
-      orderBy: { name: 'asc' },
-    }),
-  ]);
+/**
+ * Public landing page.
+ *
+ * The counts are read live rather than hard-coded. A grant-matching product
+ * claiming "12 local funders" is making a checkable claim, and a stale number
+ * on the front page is the kind of thing a subject-matter reviewer notices
+ * first. If the database is unreachable the section simply omits the figures
+ * rather than showing zeros, which would read as an empty product.
+ */
+async function landingData() {
+  try {
+    const [donors, researched, seekers, matches, sample] = await Promise.all([
+      prisma.organization.count({ where: { kind: 'DONOR' } }),
+      prisma.donorProfile.count({ where: { lastResearchedAt: { not: null } } }),
+      prisma.organization.count({ where: { kind: 'SEEKER' } }),
+      prisma.match.count(),
+      prisma.match.findFirst({
+        where: { verdict: 'APPLY' },
+        orderBy: { score: 'desc' },
+        include: { seeker: true, donor: true },
+      }),
+    ]);
+    return { donors, researched, seekers, matches, sample };
+  } catch {
+    return null;
+  }
+}
+
+const SEEKER_STEPS = [
+  {
+    title: 'Tell us what you actually do',
+    body: 'An AI interviewer asks past the mission statement: who you really serve, what you really do, and just as importantly what you do not do and who you do not serve.',
+  },
+  {
+    title: 'Track your paperwork',
+    body: 'Form 990, certificate of good standing, IRS determination letter. The engine treats missing mandatory documents as disqualifying, and tells you which grant it cost you.',
+  },
+  {
+    title: 'Get a verdict, not a list',
+    body: 'Every funder comes back as apply, worth a look, or skip, with the specific facts behind it and what would change the answer.',
+  },
+];
+
+const DONOR_STEPS = [
+  {
+    title: 'Your criteria, kept current',
+    body: 'A scheduled research pass reads your published guidelines, your IRS filings and the grant databases, and proposes updates for a person to approve.',
+  },
+  {
+    title: 'Say what guidelines cannot',
+    body: 'A dedicated interviewer captures the nuance: what actually persuades you, and the most common reason you decline a request.',
+  },
+  {
+    title: 'See who fits',
+    body: 'Well-matched local organizations surface with evidence, including the ones whose work you would never have found by keyword.',
+  },
+];
+
+const FEATURES = [
+  ['Negative scope', 'What an organization does NOT do, and who a funder will NOT fund. Exclusions are what let the engine say "skip this one" with confidence, and nobody volunteers them unasked.'],
+  ['Research with sources', 'Every proposed criterion carries the page it came from. Nothing reaches a live profile without a person accepting it.'],
+  ['Blockers over scores', 'A stated exclusion, an out-of-area address or missing mandatory paperwork forces a skip regardless of thematic fit. A false "apply" costs a small non-profit more than a false "skip".'],
+  ['One-page summary', 'A standardized funder-ready 1-pager, built only from what you have actually told us, printed straight onto your own letterhead.'],
+];
+
+export default async function LandingPage() {
+  const stats = await landingData();
 
   return (
-    <>
-      <PageHeader
-        title="Grant Align"
-        subtitle="Matches Frederick County non-profits to regional funders on what they actually do — and explicitly do not do — rather than on mission-statement language."
-      />
+    <div className="bg-white">
+      <header className="sticky top-0 z-20 border-b border-line bg-white/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3.5">
+          <span className="text-sm font-semibold tracking-tight">
+            Grant<span className="text-brand">Align</span>
+          </span>
+          <nav className="ml-auto flex items-center gap-1">
+            <a href="#how" className="hidden rounded-md px-3 py-1.5 text-sm text-muted transition hover:text-ink sm:block">How it works</a>
+            <a href="#engine" className="hidden rounded-md px-3 py-1.5 text-sm text-muted transition hover:text-ink sm:block">The engine</a>
+            <Link href="/dashboard" className="btn-primary ml-2">Open the app</Link>
+          </nav>
+        </div>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <StatTile label="Grant seekers" value={seekers} href="/seekers" />
-        <StatTile label="Grant givers" value={donors} href="/donors" />
-        <StatTile label="Recommended applications" value={applyCount} href="/matches" />
-        <StatTile label="Donors never researched" value={unresearched} href="/donors" />
-      </div>
+      {/* Hero */}
+      <section className="border-b border-line bg-gradient-to-b from-brand-light/50 to-white">
+        <div className="mx-auto grid max-w-6xl gap-12 px-6 py-20 sm:py-24 lg:grid-cols-[1.25fr,1fr] lg:items-center">
+          <div>
+          <p className="mb-4 inline-flex items-center rounded-full border border-brand/20 bg-white px-3 py-1 text-xs font-medium text-brand-dark">
+            Frederick County, Maryland
+          </p>
+          <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+            Know which grants to apply for, and which to skip.
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted">
+            Grant Align matches local non-profits to regional funders on operational reality — what an
+            organization actually does, and explicitly does not do — instead of the mission-statement
+            language that makes every applicant look the same.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/seekers" className="btn-primary px-5 py-2.5">I run a non-profit</Link>
+            <Link href="/donors" className="btn-secondary px-5 py-2.5">I fund non-profits</Link>
+          </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <Card title="Strongest matches">
-          {topMatches.length === 0 ? (
-            <EmptyState
-              title="No matches scored yet"
-              hint="Interview at least one seeker, research a donor's criteria, then run the matching engine."
-              cta={
-                <Link href="/matches" className="btn-primary">
-                  Go to matches
-                </Link>
-              }
-            />
-          ) : (
-            <ul className="divide-y divide-line">
-              {topMatches.map(match => (
-                <li key={match.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                  <VerdictBadge verdict={match.verdict} score={match.score} />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      <Link href={`/seekers/${match.seekerOrgId}`} className="hover:text-brand">
-                        {match.seeker.name}
-                      </Link>
-                      <span className="mx-1.5 text-muted">→</span>
-                      <Link href={`/donors/${match.donorOrgId}`} className="hover:text-brand">
-                        {match.donor.name}
-                      </Link>
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted">{match.headline}</p>
-                  </div>
-                </li>
+          {stats && (
+            <dl className="mt-12 grid max-w-xl grid-cols-2 gap-6 sm:grid-cols-4">
+              {[
+                [stats.donors, 'regional funders'],
+                [stats.researched, 'researched live'],
+                [stats.seekers, 'non-profit profiles'],
+                [stats.matches, 'pairings evaluated'],
+              ].map(([value, label]) => (
+                <div key={label as string}>
+                  <dt className="text-2xl font-semibold tracking-tight">{value as number}</dt>
+                  <dd className="mt-0.5 text-xs text-muted">{label as string}</dd>
+                </div>
               ))}
-            </ul>
+            </dl>
           )}
-        </Card>
+          </div>
 
-        <Card title="Needs attention">
-          {incomplete.length === 0 ? (
-            <p className="field-empty">Every seeker profile is interviewed and documented.</p>
-          ) : (
-            <ul className="divide-y divide-line">
-              {incomplete.map(org => {
-                const missing = org.compliance.filter(
-                  c => REQUIRED_COMPLIANCE.includes(c.type) && c.status !== 'VERIFIED',
-                ).length;
-                const reasons = [
-                  org.seekerProfile?.interviewComplete ? null : 'interview incomplete',
-                  missing > 0 ? `${missing} document${missing === 1 ? '' : 's'} unverified` : null,
-                ].filter(Boolean);
-                return (
-                  <li key={org.id} className="py-3 first:pt-0 last:pb-0">
-                    <Link href={`/seekers/${org.id}`} className="text-sm font-medium hover:text-brand">
-                      {org.name}
-                    </Link>
-                    <p className="mt-0.5 text-xs text-muted">{reasons.join(' · ')}</p>
-                  </li>
-                );
-              })}
-            </ul>
+          {stats?.sample && (
+            <div className="lg:pl-4">
+              <SampleMatch
+                match={stats.sample}
+                seeker={stats.sample.seeker}
+                donor={stats.sample.donor}
+              />
+            </div>
           )}
-        </Card>
-      </div>
-    </>
+        </div>
+      </section>
+
+      {/* Problem */}
+      <section className="border-b border-line">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <div className="grid gap-10 lg:grid-cols-[1fr,1.2fr]">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight">
+                The scarcest thing a small non-profit has is grant-writing hours.
+              </h2>
+            </div>
+            <div className="space-y-4 text-[15px] leading-relaxed text-muted">
+              <p>
+                Two organizations write nearly identical mission statements and do completely
+                different work. A funder publishes guidelines that say what it supports but rarely
+                what it quietly never funds. So applications get written on hope, and most of them
+                were never eligible.
+              </p>
+              <p className="text-ink">
+                The information that decides a grant is the information nobody writes down: the
+                boundaries. Who you turn away. What you refer elsewhere. What a funder has declined
+                three years running. Grant Align is built to ask for exactly that, from both sides,
+                and to compare the answers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how" className="border-b border-line bg-surface">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
+          <p className="mt-2 max-w-2xl text-[15px] text-muted">
+            One platform, two sides. Both feed the same evaluation.
+          </p>
+
+          <div className="mt-10 grid gap-8 lg:grid-cols-2">
+            {[
+              ['For grant seekers', SEEKER_STEPS],
+              ['For grant givers', DONOR_STEPS],
+            ].map(([heading, steps]) => (
+              <div key={heading as string} className="card p-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-brand">
+                  {heading as string}
+                </h3>
+                <ol className="mt-5 space-y-5">
+                  {(steps as typeof SEEKER_STEPS).map((step, i) => (
+                    <li key={step.title} className="flex gap-4">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-light text-xs font-semibold text-brand-dark">
+                        {i + 1}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium">{step.title}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-muted">{step.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Engine */}
+      <section id="engine" className="border-b border-line">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-2xl font-semibold tracking-tight">Inside the matching engine</h2>
+          <p className="mt-2 max-w-2xl text-[15px] text-muted">
+            Six weighted dimensions rather than one opaque number, so a seeker can see which one sank
+            a match and whether it is fixable.
+          </p>
+
+          <div className="mt-10 rounded-xl border border-line bg-white p-6">
+            <WorkflowDiagram />
+          </div>
+
+          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+            {FEATURES.map(([title, body]) => (
+              <div key={title} className="rounded-lg border border-line p-5">
+                <h3 className="text-sm font-semibold">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="bg-brand-dark">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-6 py-14 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-white">
+              See it against real Frederick County funders.
+            </h2>
+            <p className="mt-1.5 text-sm text-white/70">
+              Live criteria, real filings, and verdicts you can argue with.
+            </p>
+          </div>
+          <Link
+            href="/dashboard"
+            className="btn rounded-md bg-white px-5 py-2.5 font-medium text-brand-dark hover:bg-white/90"
+          >
+            Open the app
+          </Link>
+        </div>
+      </section>
+
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-8 text-xs text-muted">
+          <span className="font-medium text-ink">GrantAlign</span>
+          <span>Prototype — Frederick County, MD</span>
+          <Link href="/dashboard" className="ml-auto hover:text-ink">Dashboard</Link>
+          <Link href="/seekers" className="hover:text-ink">Grant seekers</Link>
+          <Link href="/donors" className="hover:text-ink">Grant givers</Link>
+        </div>
+      </footer>
+    </div>
   );
 }
