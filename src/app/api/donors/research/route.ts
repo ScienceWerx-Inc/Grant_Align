@@ -13,15 +13,17 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
+
   const { orgId } = (await request.json()) as { orgId?: string };
   if (!orgId) return NextResponse.json({ error: 'orgId is required.' }, { status: 400 });
 
-  // Research spends model quota and rewrites a funder's criteria, so it is
-  // limited to staff and to the funder itself.
+  // Route handlers are a separate entry point from pages: guarding the page
+  // that renders the button does nothing about a direct POST here. Research
+  // also spends model quota and rewrites a funder's live criteria.
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   if (!canAccessOrg(user, orgId)) {
-    return NextResponse.json({ error: 'Not authorized for that organization.' }, { status: 403 });
+    return NextResponse.json({ error: 'Not permitted for this organization.' }, { status: 403 });
   }
 
   const result = await refreshDonor(orgId, 'manual');

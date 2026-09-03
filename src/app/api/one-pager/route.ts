@@ -20,8 +20,9 @@ export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   if (!canAccessOrg(user, orgId)) {
-    return NextResponse.json({ error: 'Not authorized for that organization.' }, { status: 403 });
+    return NextResponse.json({ error: 'Not permitted for this organization.' }, { status: 403 });
   }
+
 
   const org = await prisma.organization.findUnique({
     where: { id: orgId },

@@ -7,9 +7,14 @@ import { REQUIRED_COMPLIANCE } from '@/lib/profile-text';
 export const dynamic = 'force-dynamic';
 
 export default async function SeekersPage() {
+  // Staff only: this page lists every organization on the platform, which is
+  // precisely what a seeker or funder must not see. Role-aware nav hides the
+  // link, but the route has to refuse it too.
+  await requireStaff();
+
   // A directory of every organization is a staff view. A seeker has no
   // business reading other non-profits' profiles, nor a funder its peers'.
-  await requireStaff();
+  
 
   const seekers = await prisma.organization.findMany({
     where: { kind: 'SEEKER' },

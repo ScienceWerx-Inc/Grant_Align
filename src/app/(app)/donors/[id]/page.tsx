@@ -16,9 +16,14 @@ export const dynamic = 'force-dynamic';
 export default async function DonorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
+  // Authorize BEFORE reading anything. The id comes straight from the URL, so
+  // this is the one check standing between one organization and another's
+  // financials, contacts and match history.
+  await requireOrgAccess(id);
+
   // Checked before the record is read. The id comes from the URL, which is the
   // most likely route for one organization's data to reach another.
-  await requireOrgAccess(id);
+  
 
   const org = await prisma.organization.findUnique({
     where: { id },

@@ -3,8 +3,12 @@ import { Card, PageHeader } from '@/components/ui';
 import { requireStaff } from '@/lib/auth';
 
 export default async function NewSeekerPage() {
-  // Only staff create organizations; membership is granted, not self-served.
+  // Creating organizations is a staff action: self-service would let anyone
+  // claim to be a funder and read other non-profits' data.
   await requireStaff();
+
+  // Only staff create organizations; membership is granted, not self-served.
+  
 
   return (
     <>

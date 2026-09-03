@@ -26,13 +26,16 @@ export async function POST(request: Request) {
   const body = (await request.json()) as { orgId?: string; answer?: string; sessionId?: string };
   if (!body.orgId) return NextResponse.json({ error: 'orgId is required.' }, { status: 400 });
 
-  // Page guards do nothing for a route handler: this endpoint is reachable
-  // directly with any orgId, so it has to make its own decision.
+  // Route handlers are a separate entry point from pages: guarding the page
+  // that renders the interview would do nothing about a direct POST here.
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   if (!canAccessOrg(user, body.orgId)) {
-    return NextResponse.json({ error: 'Not authorized for that organization.' }, { status: 403 });
+    return NextResponse.json({ error: 'Not permitted for this organization.' }, { status: 403 });
   }
+
+  // Page guards do nothing for a route handler: this endpoint is reachable
+  // directly with any orgId, so it has to make its own decision.
 
   const org = await prisma.organization.findUnique({
     where: { id: body.orgId },

@@ -9,10 +9,11 @@ export const dynamic = 'force-dynamic';
 
 export default async function OnePagerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireOrgAccess(id);
 
   // Checked before the record is read. The id comes from the URL, which is the
   // most likely route for one organization's data to reach another.
-  await requireOrgAccess(id);
+  
   const org = await prisma.organization.findUnique({
     where: { id },
     include: { seekerProfile: true },

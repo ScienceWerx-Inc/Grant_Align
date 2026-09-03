@@ -1,46 +1,38 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
-import { signOut } from '@/lib/auth-actions';
+import { UserMenu } from '@/components/UserMenu';
 
 /**
- * Shell for the working application: CRM, research, matching.
+ * Shell for the working application.
  *
- * A route group rather than a path segment, so these pages keep their URLs
- * (/seekers, /donors, /matches) while the marketing landing page keeps `/` and
- * its own chrome. Nothing in this nav belongs on a page aimed at someone who
- * has not signed up yet.
- */
-
-/**
- * Navigation is per-role, not decoration.
+ * `requireUser` here means no app page renders for a signed-out visitor even if
+ * middleware were bypassed. It is not sufficient on its own though: this only
+ * establishes that someone is signed in, and each page still has to check that
+ * this particular user may see the specific organization being requested.
  *
- * A seeker has no use for a list of every other non-profit, and showing a link
- * that leads to /no-access is worse than not showing it. The links a role gets
- * mirror what src/lib/auth.ts will actually let it load.
+ * The nav is built from the role, so a seeker is never shown a link to the
+ * list of every other non-profit - a link they would only get a redirect from.
  */
-const STAFF_NAV = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/seekers', label: 'Grant seekers' },
-  { href: '/donors', label: 'Grant givers' },
-  { href: '/matches', label: 'Matches' },
-  { href: '/staff/people', label: 'People' },
-];
-
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
 
   const nav =
     user.role === 'STAFF'
-      ? STAFF_NAV
-      : user.orgId
+      ? [
+          { href: '/dashboard', label: 'Dashboard' },
+          { href: '/seekers', label: 'Grant seekers' },
+          { href: '/donors', label: 'Grant givers' },
+          { href: '/matches', label: 'Matches' },
+        ]
+      : user.role === 'SEEKER'
         ? [
-            {
-              href: user.role === 'SEEKER' ? `/seekers/${user.orgId}` : `/donors/${user.orgId}`,
-              label: user.role === 'SEEKER' ? 'My organization' : 'My foundation',
-            },
-            { href: '/matches', label: 'Matches' },
+            { href: user.orgId ? `/seekers/${user.orgId}` : '/onboarding', label: 'My organization' },
+            { href: '/matches', label: 'My matches' },
           ]
-        : [{ href: '/onboarding', label: 'Finish setup' }];
+        : [
+            { href: user.orgId ? `/donors/${user.orgId}` : '/onboarding', label: 'Our foundation' },
+            { href: '/matches', label: 'Matching non-profits' },
+          ];
 
   return (
     <>
@@ -60,15 +52,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </Link>
             ))}
           </nav>
-          <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-xs text-muted sm:block">
-              {user.org?.name ?? (user.role === 'STAFF' ? 'Staff' : 'No organization')}
-            </span>
-            <form action={signOut}>
-              <button type="submit" className="btn-ghost px-2.5 py-1.5 text-xs">
-                Sign out
-              </button>
-            </form>
+          <div className="ml-auto">
+            <UserMenu email={user.email} role={user.role} orgName={user.org?.name ?? null} />
           </div>
         </div>
       </header>
