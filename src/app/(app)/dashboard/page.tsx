@@ -70,16 +70,16 @@ async function StrongestMatches() {
             <li key={match.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
               <VerdictBadge verdict={match.verdict} score={match.score} />
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">
-                  <Link href={`/seekers/${match.seekerOrgId}`} className="hover:text-brand">
+                <p className="truncate text-body-sm font-medium">
+                  <Link href={`/seekers/${match.seekerOrgId}`} className="hover:text-brand-ink">
                     {match.seeker.name}
                   </Link>
-                  <span className="mx-1.5 text-muted">→</span>
-                  <Link href={`/donors/${match.donorOrgId}`} className="hover:text-brand">
+                  <span className="mx-1.5 text-ink-muted">→</span>
+                  <Link href={`/donors/${match.donorOrgId}`} className="hover:text-brand-ink">
                     {match.donor.name}
                   </Link>
                 </p>
-                <p className="mt-0.5 text-xs text-muted">{match.headline}</p>
+                <p className="mt-0.5 text-caption text-ink-muted">{match.headline}</p>
               </div>
             </li>
           ))}
@@ -133,10 +133,10 @@ async function NeedsAttention() {
             ].filter(Boolean);
             return (
               <li key={org.id} className="py-3 first:pt-0 last:pb-0">
-                <Link href={`/seekers/${org.id}`} className="text-sm font-medium hover:text-brand">
+                <Link href={`/seekers/${org.id}`} className="text-body-sm font-medium hover:text-brand-ink">
                   {org.name}
                 </Link>
-                <p className="mt-0.5 text-xs text-muted">{reasons.join(' · ')}</p>
+                <p className="mt-0.5 text-caption text-ink-muted">{reasons.join(' · ')}</p>
               </li>
             );
           })}
@@ -149,10 +149,10 @@ async function NeedsAttention() {
           <ul className="mt-1 space-y-1.5">
             {donorsNeedingWork.map(org => (
               <li key={org.id} className="flex items-baseline justify-between gap-3">
-                <Link href={`/donors/${org.id}`} className="text-sm hover:text-brand">
+                <Link href={`/donors/${org.id}`} className="text-body-sm hover:text-brand-ink">
                   {org.name}
                 </Link>
-                <span className="shrink-0 text-xs text-muted">
+                <span className="shrink-0 text-caption text-ink-muted">
                   {/* "found nothing" would be wrong: research often returns IRS
                       financials and no published focus areas, which is a real
                       result. Name the gap, not a failure. */}

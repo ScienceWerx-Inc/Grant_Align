@@ -234,7 +234,7 @@ export function Checkbox({
       <input
         type="checkbox"
         {...rest}
-        className="mt-0.5 h-4 w-4 shrink-0 rounded-[3px] border-line-control text-brand
+        className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border-line-control text-brand
                    focus:ring-2 focus:ring-brand/25"
       />
       <span>{label}</span>
@@ -299,6 +299,62 @@ export function Tags({ items, empty = 'None recorded' }: { items: string[]; empt
           {item}
         </span>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Document status.
+ *
+ * Same grammar as a verdict - tinted pill, icon, and the status word itself -
+ * because "verified" and "missing" carry the same weight here that "apply" and
+ * "skip" do on a match: a missing mandatory document is disqualifying.
+ *
+ * The caller passes the label, so the wording stays whatever the screen
+ * already said rather than being invented here.
+ */
+const STATUS_TONE: Record<string, { style: string; icon: (p: IconProps) => React.ReactElement }> = {
+  VERIFIED: { style: 'bg-success-tint text-success ring-success/25', icon: IconApply },
+  PENDING: { style: 'bg-warning-tint text-warning ring-warning/25', icon: IconMaybe },
+  MISSING: { style: 'bg-danger-tint text-danger ring-danger/25', icon: IconBlocker },
+  EXPIRED: { style: 'bg-danger-tint text-danger ring-danger/25', icon: IconBlocker },
+};
+
+export function StatusPill({ status, label }: { status: string; label: string }) {
+  const tone = STATUS_TONE[status] ?? {
+    style: 'bg-band text-ink-muted ring-line-strong',
+    icon: IconInfo,
+  };
+  const Glyph = tone.icon;
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill px-2.5 py-0.5',
+        'text-caption font-semibold ring-1',
+        tone.style,
+      )}
+    >
+      <Glyph className="h-3.5 w-3.5 shrink-0" />
+      {label}
+    </span>
+  );
+}
+
+/**
+ * The negative-scope editor.
+ *
+ * What an organization does NOT do, and what a funder will NOT fund, is the
+ * thing this product knows that a mission statement does not - so those fields
+ * are drawn as their own panel rather than as two more boxes in a grid of six.
+ *
+ * It carries no heading of its own on purpose. The field labels already say
+ * "do NOT", and inventing a section title here would be putting words in the
+ * product's mouth. The accent edge does the work instead.
+ */
+export function NegativeScopePanel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-control border border-accent/30 bg-accent-tint/60 p-4">
+      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
     </div>
   );
 }
@@ -414,7 +470,7 @@ export function VerdictBadge({ verdict, score }: { verdict: MatchVerdict; score?
       // "Apply", and letting badges size to their content left every row in a
       // list starting its text at a different x position.
       className={cn(
-        'inline-flex w-[8.5rem] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill',
+        'inline-flex w-verdict shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill',
         'px-2.5 py-1 text-caption font-semibold ring-1',
         VERDICT_STYLE[verdict],
       )}

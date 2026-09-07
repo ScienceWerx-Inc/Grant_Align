@@ -36,6 +36,7 @@ export function AuthShell({
       </header>
 
       <main className="flex flex-1 items-center justify-center px-6 py-16">
+        {/* 26rem: an auth card wider than this stops reading as one field per line. */}
         <div className="w-full max-w-[26rem]">
           <Overline>{eyebrow}</Overline>
           <h1 className="mt-4 text-h1 font-medium tracking-tight text-ink">{title}</h1>

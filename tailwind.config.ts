@@ -52,6 +52,17 @@ export default {
         prose: '68ch',
       },
 
+      width: {
+        /*
+         * The verdict column. "Worth a look" is twice the length of "Apply",
+         * so the badge is fixed-width to stop every row in a list starting its
+         * text at a different x position. A token because the live-run list
+         * renders a "not scored" placeholder into the same column, and the two
+         * silently drifted apart when the badge was last resized.
+         */
+        verdict: '8.5rem',
+      },
+
       borderRadius: {
         control: '0.375rem',
         card: '0.75rem',

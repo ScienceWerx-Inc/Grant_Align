@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { VerdictBadge } from '@/components/ui';
+import { BlockerList, DimensionRow, VerdictBadge } from '@/components/ui';
+import { IconChevronDown } from '@/components/icons';
 import { DIMENSIONS } from '@/ai/flows/scoreMatch';
 import type { Match, Organization } from '@prisma/client';
 
@@ -15,6 +16,10 @@ const DIM_LABEL = new Map<string, string>(DIMENSIONS.map(d => [d.key, d.label]))
  * A match, expanded. The per-dimension bars are the reason the engine is
  * arguable rather than oracular: a seeker can see that they lost on geography
  * and not on merit, and act on that.
+ *
+ * The dimensions are rendered in the engine's own order rather than whatever
+ * order the model returned them in, so the same six always read down the page
+ * in the same sequence and can be compared between two matches at a glance.
  */
 export function MatchCard({
   match,
@@ -25,38 +30,34 @@ export function MatchCard({
   counterparty: Organization;
   href: string;
 }) {
-  const dimensions = (match.dimensions as unknown as Dimension[]) ?? [];
+  const returned = (match.dimensions as unknown as Dimension[]) ?? [];
+  const byKey = new Map(returned.map(d => [d.key, d]));
+  const dimensions = DIMENSIONS.map(d => byKey.get(d.key)).filter(Boolean) as Dimension[];
 
   return (
-    <details className="group rounded-lg border border-line bg-white">
-      <summary className="flex cursor-pointer flex-wrap items-center gap-3 px-4 py-3">
+    <details className="group card overflow-hidden">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-3 transition hover:bg-band">
         <VerdictBadge verdict={match.verdict} score={match.score} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{counterparty.name}</p>
-          <p className="truncate text-xs text-muted">{match.headline}</p>
+          <p className="truncate text-body-sm font-medium text-ink">{counterparty.name}</p>
+          <p className="truncate text-caption text-ink-muted">{match.headline}</p>
         </div>
-        <span className="text-xs text-muted group-open:hidden">Details</span>
+        <span className="flex items-center gap-1 text-caption text-ink-muted">
+          <span className="group-open:hidden">Details</span>
+          <IconChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+        </span>
       </summary>
 
-      <div className="space-y-4 border-t border-line px-4 py-4">
-        <p className="text-sm">{match.rationale}</p>
+      <div className="space-y-5 border-t border-line px-4 py-4">
+        <p className="measure text-body-sm text-ink-body">{match.rationale}</p>
 
-        {match.blockers.length > 0 && (
-          <div className="rounded-md bg-skip/5 px-3 py-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-skip">Disqualifiers</p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-sm">
-              {match.blockers.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <BlockerList items={match.blockers} />
 
         <div className="grid gap-4 sm:grid-cols-2">
           {match.alignments.length > 0 && (
             <div>
               <p className="label">What lines up</p>
-              <ul className="list-disc space-y-0.5 pl-4 text-sm">
+              <ul className="list-disc space-y-1 pl-4 text-body-sm text-ink-body">
                 {match.alignments.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -66,7 +67,7 @@ export function MatchCard({
           {match.gaps.length > 0 && (
             <div>
               <p className="label">Where it is weak</p>
-              <ul className="list-disc space-y-0.5 pl-4 text-sm">
+              <ul className="list-disc space-y-1 pl-4 text-body-sm text-ink-body">
                 {match.gaps.map((item, i) => (
                   <li key={i}>{item}</li>
                 ))}
@@ -77,27 +78,21 @@ export function MatchCard({
 
         <div>
           <p className="label">Scoring breakdown</p>
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {dimensions.map(dimension => (
-              <li key={dimension.key}>
-                <div className="flex items-baseline justify-between gap-3 text-xs">
-                  <span className="font-medium">{DIM_LABEL.get(dimension.key) ?? dimension.key}</span>
-                  <span className="text-muted">{dimension.score}</span>
-                </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface">
-                  <div
-                    className="h-full rounded-full bg-brand"
-                    style={{ width: `${Math.max(0, Math.min(100, dimension.score))}%` }}
-                  />
-                </div>
-                <p className="mt-1 text-xs text-muted">{dimension.note}</p>
-              </li>
+              <DimensionRow
+                key={dimension.key}
+                dimensionKey={dimension.key}
+                label={DIM_LABEL.get(dimension.key) ?? dimension.key}
+                score={dimension.score}
+                note={dimension.note}
+              />
             ))}
           </ul>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted">
-          <Link href={href} className="hover:text-brand">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-caption text-ink-muted">
+          <Link href={href} className="btn-link">
             Open {counterparty.name} →
           </Link>
           <span>Scored {match.computedAt.toLocaleDateString('en-US')}</span>

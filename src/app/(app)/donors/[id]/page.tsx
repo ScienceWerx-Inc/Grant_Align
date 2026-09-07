@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { requireOrgAccess } from '@/lib/auth';
-import { Card, Field, PageHeader } from '@/components/ui';
+import { Card, Field, NegativeScopePanel, PageHeader } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
 import { ActionButton } from '@/components/ActionButton';
 import { MatchRunner } from '@/components/MatchRunner';
@@ -69,7 +69,7 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
           <Card
             title="Giving criteria"
             action={
-              <span className="text-xs text-muted">
+              <span className="text-caption text-ink-muted">
                 {profile?.lastResearchedAt
                   ? `Researched ${profile.lastResearchedAt.toLocaleDateString('en-US')}${
                       profile.researchGrounded ? '' : ' (unverified)'
@@ -85,18 +85,23 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
                   <input id="fundingFocus" name="fundingFocus" defaultValue={profile?.fundingFocus.join(', ') ?? ''} className="input" />
                 </div>
                 <div>
-                  <label className="label" htmlFor="excludedSectors">Will NOT fund</label>
-                  <input id="excludedSectors" name="excludedSectors" defaultValue={profile?.excludedSectors.join(', ') ?? ''} className="input" />
-                </div>
-                <div>
                   <label className="label" htmlFor="populationsServed">Populations prioritized</label>
                   <input id="populationsServed" name="populationsServed" defaultValue={profile?.populationsServed.join(', ') ?? ''} className="input" />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className="label" htmlFor="geographies">Geographies funded</label>
                   <input id="geographies" name="geographies" defaultValue={profile?.geographies.join(', ') ?? ''} className="input" />
                 </div>
               </div>
+
+              {/* Mirrors the seeker side: what a funder will not fund is the
+                  half of the criteria published guidelines tend to leave out. */}
+              <NegativeScopePanel>
+                <div className="sm:col-span-2">
+                  <label className="label" htmlFor="excludedSectors">Will NOT fund</label>
+                  <input id="excludedSectors" name="excludedSectors" defaultValue={profile?.excludedSectors.join(', ') ?? ''} className="input" />
+                </div>
+              </NegativeScopePanel>
 
               <div className="grid gap-4 sm:grid-cols-4">
                 <div>
@@ -139,16 +144,16 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
               </div>
 
               <div className="flex flex-wrap items-center gap-5">
-                <label className="flex items-center gap-2 text-xs text-muted">
-                  <input type="checkbox" name="requiresLoi" defaultChecked={profile?.requiresLoi} className="rounded border-line" />
+                <label className="flex items-center gap-2 text-caption text-ink-muted">
+                  <input type="checkbox" name="requiresLoi" defaultChecked={profile?.requiresLoi} className="h-4 w-4 rounded-sm border-line-control text-brand focus:ring-2 focus:ring-brand/25" />
                   Letter of intent first
                 </label>
-                <label className="flex items-center gap-2 text-xs text-muted">
-                  <input type="checkbox" name="requires990" defaultChecked={profile?.requires990 ?? true} className="rounded border-line" />
+                <label className="flex items-center gap-2 text-caption text-ink-muted">
+                  <input type="checkbox" name="requires990" defaultChecked={profile?.requires990 ?? true} className="h-4 w-4 rounded-sm border-line-control text-brand focus:ring-2 focus:ring-brand/25" />
                   Requires Form 990
                 </label>
-                <label className="flex items-center gap-2 text-xs text-muted">
-                  <input type="checkbox" name="requiresGoodStanding" defaultChecked={profile?.requiresGoodStanding ?? true} className="rounded border-line" />
+                <label className="flex items-center gap-2 text-caption text-ink-muted">
+                  <input type="checkbox" name="requiresGoodStanding" defaultChecked={profile?.requiresGoodStanding ?? true} className="h-4 w-4 rounded-sm border-line-control text-brand focus:ring-2 focus:ring-brand/25" />
                   Requires good standing
                 </label>
                 <button type="submit" className="btn-secondary ml-auto">Save criteria</button>
@@ -200,7 +205,7 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
 
           {session?.summary && (
             <Card title="Interview summary">
-              <p className="whitespace-pre-wrap text-sm">{session.summary}</p>
+              <p className="whitespace-pre-wrap text-body-sm">{session.summary}</p>
             </Card>
           )}
         </div>
