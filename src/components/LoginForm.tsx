@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { Alert, Button, FieldShell } from '@/components/ui';
 
 /**
  * Email and password sign-in.
@@ -38,9 +39,8 @@ export function LoginForm({ next }: { next?: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-10 space-y-6">
-      <div>
-        <label className="meta mb-2 block" htmlFor="email">Email</label>
+    <form onSubmit={onSubmit} className="space-y-5">
+      <FieldShell label="Email" htmlFor="email">
         <input
           id="email"
           type="email"
@@ -48,11 +48,10 @@ export function LoginForm({ next }: { next?: string }) {
           required
           value={email}
           onChange={e => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-graphite bg-transparent px-4 py-3 text-body text-chalk outline-none transition placeholder:text-iron focus:border-iron"
+          className="input"
         />
-      </div>
-      <div>
-        <label className="meta mb-2 block" htmlFor="password">Password</label>
+      </FieldShell>
+      <FieldShell label="Password" htmlFor="password">
         <input
           id="password"
           type="password"
@@ -60,17 +59,15 @@ export function LoginForm({ next }: { next?: string }) {
           required
           value={password}
           onChange={e => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-graphite bg-transparent px-4 py-3 text-body text-chalk outline-none transition placeholder:text-iron focus:border-iron"
+          className="input"
         />
-      </div>
+      </FieldShell>
 
-      {error && (
-        <p className="rounded border border-graphite px-4 py-3 text-[13px] text-ash">{error}</p>
-      )}
+      {error && <Alert tone="danger">{error}</Alert>}
 
-      <button type="submit" disabled={busy} className="pill-white w-full">
+      <Button type="submit" loading={busy} className="w-full">
         {busy ? 'Signing in…' : 'Sign in'}
-      </button>
+      </Button>
     </form>
   );
 }

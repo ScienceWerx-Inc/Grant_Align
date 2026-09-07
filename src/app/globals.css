@@ -196,17 +196,6 @@ body {
     @apply fixed inset-y-0 right-0 z-50 w-[min(20rem,85vw)] bg-card shadow-modal;
   }
 
-  /* ---------------------------------------------------------- legacy ----
-   * Still referenced by /login, which is migrated in §6 step 7. Deleted then.
-   */
-  .pill-white {
-    @apply inline-flex items-center justify-center gap-2 rounded-pill bg-white px-6 py-3
-           font-sans text-body-sm font-normal uppercase tracking-[0.02em] text-obsidian
-           transition hover:bg-chalk;
-  }
-  .meta {
-    @apply font-mono text-caption uppercase tracking-[-0.022em] text-smoke;
-  }
 }
 
 /* Newly-arrived rows in a live run slide up as they land. Short enough to

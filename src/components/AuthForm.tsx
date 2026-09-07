@@ -2,6 +2,7 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { Alert, Button } from '@/components/ui';
 
 /**
  * Shared shell for sign-in and sign-up.
@@ -14,9 +15,9 @@ import { useFormStatus } from 'react-dom';
 function SubmitButton({ label, pending }: { label: string; pending: string }) {
   const { pending: busy } = useFormStatus();
   return (
-    <button type="submit" disabled={busy} className="btn-primary w-full py-2.5">
+    <Button type="submit" loading={busy} className="w-full">
       {busy ? pending : label}
-    </button>
+    </Button>
   );
 }
 
@@ -34,13 +35,9 @@ export function AuthForm({
   const [state, formAction] = useActionState(action, undefined);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-5">
       {children}
-      {state?.error && (
-        <p role="alert" className="rounded-md bg-skip/10 px-3 py-2 text-sm text-skip">
-          {state.error}
-        </p>
-      )}
+      {state?.error && <Alert tone="danger">{state.error}</Alert>}
       <SubmitButton label={submitLabel} pending={pendingLabel} />
     </form>
   );
