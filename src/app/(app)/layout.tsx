@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import { requireUser } from '@/lib/auth';
 import { UserMenu } from '@/components/UserMenu';
+import { AppNav } from '@/components/AppNav';
 
 /**
  * Shell for the working application.
@@ -36,28 +36,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-      <header className="no-print sticky top-0 z-20 border-b border-line bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-6 py-3">
-          <Link href="/" className="text-sm font-semibold tracking-tight">
-            Grant<span className="text-brand">Align</span>
-          </Link>
-          <nav className="flex gap-1">
-            {nav.map(item => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-1.5 text-sm text-muted transition hover:bg-surface hover:text-ink"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="ml-auto">
-            <UserMenu email={user.email} role={user.role} orgName={user.org?.name ?? null} />
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+      <AppNav items={nav}>
+        <UserMenu email={user.email} role={user.role} orgName={user.org?.name ?? null} />
+      </AppNav>
+      <main className="mx-auto max-w-page px-6 py-8">{children}</main>
     </>
   );
 }

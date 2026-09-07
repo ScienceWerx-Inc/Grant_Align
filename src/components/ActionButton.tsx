@@ -67,12 +67,18 @@ export function ActionButton({
         type="button"
         onClick={run}
         disabled={busy}
+        aria-busy={busy || undefined}
         className={variant === 'primary' ? 'btn-primary' : 'btn-secondary'}
       >
         {busy ? pendingLabel : label}
       </button>
       {message && (
-        <span className={`text-xs ${message.tone === 'ok' ? 'text-apply' : 'text-skip'}`}>
+        // Announced as well as shown: these calls take tens of seconds, and the
+        // outcome arriving silently is the whole failure mode worth avoiding.
+        <span
+          role="status"
+          className={`text-caption ${message.tone === 'ok' ? 'text-success' : 'text-danger'}`}
+        >
           {message.text}
         </span>
       )}

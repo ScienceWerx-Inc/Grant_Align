@@ -133,13 +133,6 @@ body {
            px-3.5 py-2 text-body-sm font-medium transition
            disabled:pointer-events-none disabled:opacity-55;
   }
-  .btn-sm {
-    @apply gap-1.5 px-2.5 py-1.5 text-caption;
-  }
-  .btn-lg {
-    @apply gap-2.5 rounded-pill px-6 py-3 text-body;
-  }
-
   .btn-primary {
     @apply btn bg-brand text-brand-on hover:bg-brand-hover active:bg-brand-active;
   }
@@ -159,6 +152,19 @@ body {
   /* Square by construction so an icon never sits off-centre. */
   .btn-icon {
     @apply btn h-9 w-9 shrink-0 p-0 text-ink-muted hover:bg-band hover:text-ink;
+  }
+
+  /*
+   * Size modifiers are declared AFTER every variant on purpose. A variant
+   * pulls in `.btn`'s padding through @apply, so if these came first
+   * `btn-secondary btn-sm` would silently render at medium - the cascade,
+   * not the class order in the attribute, decides.
+   */
+  .btn-sm {
+    @apply gap-1.5 px-2.5 py-1.5 text-caption;
+  }
+  .btn-lg {
+    @apply gap-2.5 rounded-pill px-6 py-3 text-body;
   }
 
   /* ------------------------------------------------------ chips and pills */
