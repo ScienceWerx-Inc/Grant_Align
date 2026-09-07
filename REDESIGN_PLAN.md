@@ -1,6 +1,6 @@
 # GrantAlign — Redesign Plan (Phase 0 Audit)
 
-Status: **Phase 0 complete. No styling code written. Awaiting approval.**
+Status: **Phase 0 and Phase 1 complete. Phase 2 complete except step 8 (marketing), which is deferred — see §11.**
 
 ---
 
@@ -219,3 +219,64 @@ My recommendation: **decline both.** A local `cn()` helper and a small hand-auth
 3. **`error.tsx` / `not-found.tsx`** — approve or decline.
 4. **Mobile nav drawer** — approve or decline.
 5. **Dependencies** — confirm the decline above.
+
+---
+
+## 11. Status log
+
+Branch `redesign/warm-civic`. Build and typecheck pass on every commit.
+
+| Step | Surface | Commit | State |
+|---|---|---|---|
+| 0 | Audit | — | done |
+| 1–5 | Token layer, primitives, `/design-system` | `e8df5c9` | done |
+| 6 | App shell, mobile sheet, user menu | `84b0ee5` | done |
+| 7 | Auth: login, signup, no-access, onboarding | `b1fafc5` | done |
+| 8 | Marketing `/` | — | **deferred — see below** |
+| 9–13 | Seeker, donor, matches, admin | `6231ad3` | done |
+| 14 | Skeletons, empty states, `error.tsx`, `not-found.tsx` | `6231ad3` | done |
+| 15 | Verification sweep, screenshots | `HEAD` | partial — see below |
+
+### Step 8 is deferred, deliberately
+
+`src/app/page.tsx`, `src/app/layout.tsx`, `src/components/landing/Diagram.tsx`,
+`src/components/landing/SampleMatch.tsx`, `src/components/landing/Artwork.tsx` and
+`public/images/` were **already modified and uncommitted** in the working tree when this
+work began. They are not mine. Rewriting them would have mixed two people's changes into
+one commit and put that work at risk.
+
+What step 8 still owes, once those files are committed or confirmed:
+
+- reconcile the `com-*` palette on `/` to the final tokens, and delete the seven `com-*`
+  colours plus `rounded-com-cards`/`rounded-com-buttons` from `tailwind.config.ts`
+- remove the ~200 arbitrary values and 43 raw hex values still in those four files
+- replace the raw System B hex still in `Artwork.tsx` (`#212121`, `#f3f3f3`, `#474747`)
+- fold `landing/SampleMatch.tsx` into the shared `MatchCard` + `ScoreMeter`
+- resolve `layout.tsx`, which still loads Inter through `next/font/google`
+
+### Verification sweep
+
+Across the 36 files this redesign owns:
+
+- hard-coded hex: **none**
+- arbitrary px values: **none**
+- legacy tokens (`text-muted`, `bg-surface`, `text-apply/maybe/skip`): **none**
+- four dimensional one-offs remain (`32rem`, `85%`, `26rem`, `8.5in`), each commented
+  with why it is not a scale step
+
+### Screenshots
+
+`node scripts/shots.mjs` captures at 375 and 1440 into `redesign-screenshots/`.
+
+Only `/login` could be captured. Everything else is unreachable to an unauthenticated
+browser, and Supabase owns the passwords, so the seed data does not supply any. The script
+takes `SHOT_EMAIL` / `SHOT_PASSWORD` and will capture the remaining nine routes with real
+credentials; it reports redirected routes as SKIP rather than saving a screenshot of the
+login page under another route's name.
+
+### Bugs found, not fixed
+
+4. **`/signup` is unreachable when signed out.** `PUBLIC_PATHS` in `src/middleware.ts` is
+   `['/', '/login', '/auth', '/no-access']`, so `/signup` 307s to `/login` — for exactly
+   the visitors who need it. Pre-existing, and a middleware change rather than a styling one.
+5. **`/design-system` is behind the same gate**, so it renders only when signed in.

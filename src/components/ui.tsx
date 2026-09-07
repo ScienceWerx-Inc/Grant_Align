@@ -31,7 +31,7 @@ import {
 /* ========================================================== layout & text */
 
 export function Overline({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <p className={cn('overline', className)}>{children}</p>;
+  return <p className={cn('eyebrow', className)}>{children}</p>;
 }
 
 export function PageHeader({

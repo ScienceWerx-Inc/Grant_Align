@@ -72,7 +72,7 @@ body {
 
   /* The eyebrow above a section heading. Case, tracking and colour as one
    * decision, so it cannot drift between sections. */
-  .overline {
+  .eyebrow {
     @apply font-mono text-overline uppercase text-ink-muted;
   }
 
@@ -176,24 +176,6 @@ body {
   .chip-neutral {
     @apply inline-flex items-center rounded-pill bg-band px-2.5 py-0.5
            text-caption font-medium text-ink-muted;
-  }
-
-  /* -------------------------------------------------------------- surface */
-
-  .band {
-    @apply bg-band;
-  }
-  .hairline-t {
-    @apply border-t border-line;
-  }
-
-  /* ------------------------------------------------------------- overlays */
-
-  .sheet {
-    @apply fixed inset-0 z-50 bg-ink/40 backdrop-blur-[1px];
-  }
-  .sheet-panel {
-    @apply fixed inset-y-0 right-0 z-50 w-[min(20rem,85vw)] bg-card shadow-modal;
   }
 
 }

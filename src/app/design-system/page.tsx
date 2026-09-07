@@ -95,7 +95,7 @@ function Swatches() {
     >
       <div className="space-y-6">
         <div>
-          <p className="overline mb-3">Surface</p>
+          <p className="eyebrow mb-3">Surface</p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Swatch name="paper" className="bg-paper" hex="#FAF9F5" />
             <Swatch name="card" className="bg-card" hex="#FFFFFF" />
@@ -104,7 +104,7 @@ function Swatches() {
           </div>
         </div>
         <div>
-          <p className="overline mb-3">Ink</p>
+          <p className="eyebrow mb-3">Ink</p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Swatch name="ink" className="bg-ink" hex="#1C1A17 · 16.5:1" />
             <Swatch name="ink-body" className="bg-ink-body" hex="#35322C · 12.1:1" />
@@ -113,7 +113,7 @@ function Swatches() {
           </div>
         </div>
         <div>
-          <p className="overline mb-3">Brand &amp; accent</p>
+          <p className="eyebrow mb-3">Brand &amp; accent</p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Swatch name="brand" className="bg-brand" hex="#20845B · fills" />
             <Swatch name="brand-ink" className="bg-brand-ink" hex="#1A6B4A · text" />
@@ -122,7 +122,7 @@ function Swatches() {
           </div>
         </div>
         <div>
-          <p className="overline mb-3">Semantic</p>
+          <p className="eyebrow mb-3">Semantic</p>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Swatch name="success" className="bg-success" hex="#1B6E45" />
             <Swatch name="warning" className="bg-warning" hex="#7A5610" />
@@ -152,7 +152,7 @@ function TypeScale() {
   return (
     <Spec title="Type" note="Every text node uses a step. No ad-hoc sizes anywhere in the app.">
       <div className="space-y-4">
-        <p className="overline">Overline · the eyebrow label</p>
+        <p className="eyebrow">Overline · the eyebrow label</p>
         {steps.map(([step, klass, sample]) => (
           <div key={step} className="flex flex-wrap items-baseline gap-4 border-t border-line pt-4">
             <code className="w-24 shrink-0 font-mono text-caption text-ink-muted">{step}</code>
@@ -286,7 +286,7 @@ function VerdictLanguage() {
           <VerdictBadge verdict="MAYBE" score={61} />
           <VerdictBadge verdict="SKIP" score={22} />
           <div className="pt-2">
-            <p className="overline mb-2">Score meter</p>
+            <p className="eyebrow mb-2">Score meter</p>
             <div className="space-y-3">
               <ScoreMeter score={88} label="High" />
               <ScoreMeter score={55} label="Middling" />
@@ -296,7 +296,7 @@ function VerdictLanguage() {
         </div>
         <div className="space-y-5">
           <div>
-            <p className="overline mb-2">The six dimensions</p>
+            <p className="eyebrow mb-2">The six dimensions</p>
             <ul className="space-y-3">
               {DIMENSIONS.map((dimension, i) => (
                 <DimensionRow
