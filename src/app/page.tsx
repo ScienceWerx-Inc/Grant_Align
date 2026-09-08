@@ -202,7 +202,7 @@ export default function LandingPage() {
 
           {/* 7. HERO ILLUSTRATION */}
           <div className="flex-1 relative w-full opacity-0 animate-fade-in-up-delay-1 mix-blend-multiply">
-             <img src="/images/hero-community.png" alt="Community team working together" className="w-full h-auto object-contain mx-auto animate-float" />
+             <img src="/images/new_hero_community.jpg" alt="Community team working together" className="w-full h-auto object-contain mx-auto animate-float" />
           </div>
         </div>
       </section>
@@ -415,7 +415,7 @@ export default function LandingPage() {
       <section className="py-32 px-6">
         <div className="max-w-page mx-auto grid md:grid-cols-2 gap-16 items-center">
           <div className="relative">
-            <img src="/images/human-leader.jpg" alt="Community leader" className="w-full h-auto object-cover contrast-[1.05] mix-blend-multiply" />
+            <img src="/images/human_leader_illustration.jpg" alt="Community leader" className="w-full h-auto object-cover contrast-[1.05] mix-blend-multiply" />
           </div>
           <div className="relative isolate px-8 md:px-12">
             <span className="block text-overline text-brand-ink mb-8 uppercase">People. Partnerships. Progress.</span>
