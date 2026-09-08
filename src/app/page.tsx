@@ -185,8 +185,8 @@ export default function LandingPage() {
               Matching local non-profits to regional funders based on what an organization actually does — and explicitly does not do — rather than on mission-statement language.
             </p>
             <div className="mt-12 flex flex-wrap items-center gap-4">
-              <Link href="/login" className="inline-flex h-[52px] items-center px-8 rounded-pill bg-brand text-brand-on font-semibold hover:bg-brand-hover transition-all hover:scale-105 shadow-raised text-body-sm">
-                Sign in &rarr;
+              <Link href="/contact" className="inline-flex h-[52px] items-center px-8 rounded-pill bg-brand text-brand-on font-semibold hover:bg-brand-hover transition-all hover:scale-105 shadow-raised text-body-sm">
+                Contact us &rarr;
               </Link>
               <a href="#how" className="inline-flex h-[52px] items-center px-8 rounded-pill border-2 border-brand bg-transparent text-brand-ink font-semibold hover:bg-brand-tint transition-all hover:scale-105 text-body-sm">
                 See how it works &rarr;
