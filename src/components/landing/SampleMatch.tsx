@@ -32,34 +32,34 @@ export function SampleMatch({
   const dimensions = (match.dimensions as unknown as Dimension[]) ?? [];
 
   return (
-    <figure className="hairline rounded-lg p-8">
+    <figure className="rounded-panel border border-line p-8 bg-card shadow-overlay">
       <figcaption className="flex items-center justify-between gap-4">
-        <span className="meta">A real evaluation</span>
-        <span className="status-pill">
-          <span className="h-1.5 w-1.5 rounded-full bg-pulse-green" />
+        <span className="text-[11px] font-bold tracking-widest text-ink-muted uppercase">A real evaluation</span>
+        <span className="inline-flex items-center gap-2 rounded-pill bg-brand-tint px-3 py-1 font-sans text-[12px] font-semibold text-brand">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
           Apply · {match.score}
         </span>
       </figcaption>
 
-      <p className="mt-6 text-heading-xs text-chalk">
+      <p className="mt-6 text-h4 font-semibold text-ink">
         {seeker.name}
-        <span className="mx-2.5 text-iron">→</span>
+        <span className="mx-2.5 text-ink-muted opacity-60">→</span>
         {donor.name}
       </p>
-      <p className="mt-3 text-body text-smoke">{match.headline}</p>
+      <p className="mt-3 text-body-sm text-ink-body leading-relaxed">{match.headline}</p>
 
-      <dl className="mt-8 space-y-3.5">
+      <dl className="mt-8 space-y-4">
         {dimensions.map(dimension => (
           <div key={dimension.key}>
             <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-[13px] text-ash">
+              <dt className="text-[13px] text-ink-body font-medium">
                 {DIM_LABEL.get(dimension.key) ?? dimension.key}
               </dt>
-              <dd className="font-mono text-[13px] tabular-nums text-smoke">{dimension.score}</dd>
+              <dd className="font-mono text-[13px] tabular-nums text-ink font-semibold">{dimension.score}</dd>
             </div>
-            <div className="mt-2 h-px w-full bg-graphite">
+            <div className="mt-2 h-1.5 w-full rounded-full bg-brand-tint/60 overflow-hidden">
               <div
-                className="h-px bg-chalk"
+                className="h-full bg-brand rounded-full"
                 style={{ width: `${Math.max(0, Math.min(100, dimension.score))}%` }}
               />
             </div>

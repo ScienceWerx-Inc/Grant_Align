@@ -80,6 +80,28 @@ body {
     @apply max-w-prose;
   }
 
+  /*
+   * Dissolves an image's edges into the page.
+   *
+   * For artwork that has no alpha channel and cannot be given one. The hero
+   * illustration is a drawn room: the white behind the people is a wall, and
+   * it is the same 255,255,255 as the whiteboard, the paper and the shoes, so
+   * no colour key can take one without taking the others. Feathering the
+   * border removes the thing that actually reads as a background - the hard
+   * rectangular edge - and lets the pale interior sit on the pale page.
+   *
+   * Two gradients intersected rather than a radial one: a radial vignette
+   * pulls the people standing at the left and right edges into the fade.
+   */
+  .image-feather {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+
   /* --------------------------------------------------------------- panels */
 
   .card {
@@ -180,9 +202,17 @@ body {
 
 }
 
-/* Newly-arrived rows in a live run slide up as they land. Short enough to
-   register without delaying the next one, which can arrive within a second. */
-@keyframes fadeInUp {
+/*
+ * Newly-arrived rows in a live run slide up as they land. Short enough to
+ * register without delaying the next one, which can arrive within a second.
+ *
+ * Named rowInUp, not fadeInUp: the landing page defines a fadeInUp of its own
+ * through tailwind.config.ts, and two @keyframes blocks sharing a name do not
+ * merge - the last one in the stylesheet silently replaces the other. This one
+ * travels 6px because it is a table row; that one travels 20px because it is a
+ * hero. Whichever lost would have been wrong somewhere.
+ */
+@keyframes rowInUp {
   from {
     opacity: 0;
     transform: translateY(6px);

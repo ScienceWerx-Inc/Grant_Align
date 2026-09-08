@@ -187,7 +187,7 @@ export function MatchRunner({
                   key={`${outcome.seekerName}-${outcome.donorName}-${i}`}
                   // Newest row animates in; the rest are already settled.
                   className={`flex items-center gap-3 rounded-control px-2 py-1.5 ${
-                    i === 0 ? 'animate-[fadeInUp_240ms_ease-out] bg-band' : ''
+                    i === 0 ? 'animate-[rowInUp_240ms_ease-out] bg-band' : ''
                   }`}
                 >
                   {outcome.skippedReason ? (

@@ -91,6 +91,23 @@ export default {
         DEFAULT: 'cubic-bezier(0.2, 0, 0.2, 1)',
       },
 
+      keyframes: {
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'none' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+      },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.8s cubic-bezier(0.2, 0, 0.2, 1) forwards',
+        'fade-in-up-delay-1': 'fadeInUp 0.8s cubic-bezier(0.2, 0, 0.2, 1) 0.2s forwards',
+        'fade-in-up-delay-2': 'fadeInUp 0.8s cubic-bezier(0.2, 0, 0.2, 1) 0.4s forwards',
+        float: 'float 4s ease-in-out infinite',
+      },
+
       colors: {
         /* ---- Surfaces: warm paper, not white, not cool grey ---- */
         paper: '#FAF9F5',
