@@ -35,7 +35,7 @@ export function SampleMatch({
     <figure className="rounded-panel border border-line p-8 bg-card shadow-overlay">
       <figcaption className="flex items-center justify-between gap-4">
         <span className="text-[11px] font-bold tracking-widest text-ink-muted uppercase">A real evaluation</span>
-        <span className="inline-flex items-center gap-2 rounded-pill bg-brand-tint px-3 py-1 font-sans text-[12px] font-semibold text-brand">
+        <span className="inline-flex items-center gap-2 rounded-pill bg-brand-tint px-3 py-1 font-sans text-caption font-semibold text-brand-ink">
           <span className="h-1.5 w-1.5 rounded-full bg-brand" />
           Apply · {match.score}
         </span>
