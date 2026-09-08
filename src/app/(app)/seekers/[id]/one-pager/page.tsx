@@ -33,7 +33,7 @@ export default async function OnePagerPage({ params }: { params: Promise<{ id: s
           }
         />
         {!org.seekerProfile?.interviewComplete && (
-          <p className="mb-6 rounded-md bg-maybe/10 px-4 py-3 text-sm text-ink">
+          <p className="mb-6 rounded-control bg-verdict-maybe/10 px-4 py-3 text-body-sm text-ink">
             The AI interview for this organization is not finished, so the sheet will have gaps.
             Completing it first produces a far more concrete 1-pager.
           </p>

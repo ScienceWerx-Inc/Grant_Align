@@ -32,12 +32,20 @@ export function UserMenu({
   return (
     <div className="flex items-center gap-3">
       <div className="hidden text-right sm:block">
-        <p className="text-xs font-medium leading-tight">{orgName ?? ROLE_LABEL[role] ?? role}</p>
-        <p className="text-[11px] leading-tight text-muted">
+        <p className="text-caption font-medium leading-tight text-ink">
+          {orgName ?? ROLE_LABEL[role] ?? role}
+        </p>
+        <p className="text-caption leading-tight text-ink-muted">
           {ROLE_LABEL[role] ?? role} · {email}
         </p>
       </div>
-      <button type="button" onClick={signOut} disabled={busy} className="btn-secondary px-3 py-1.5 text-xs">
+      <button
+        type="button"
+        onClick={signOut}
+        disabled={busy}
+        aria-busy={busy || undefined}
+        className="btn-secondary btn-sm"
+      >
         {busy ? 'Signing out…' : 'Sign out'}
       </button>
     </div>

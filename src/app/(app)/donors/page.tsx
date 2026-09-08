@@ -52,26 +52,26 @@ export default async function DonorsPage() {
               return (
                 <li key={org.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0 flex-1">
-                    <Link href={`/donors/${org.id}`} className="text-sm font-medium hover:text-brand">
+                    <Link href={`/donors/${org.id}`} className="text-body-sm font-medium hover:text-brand-ink">
                       {org.name}
                     </Link>
-                    <p className="mt-0.5 truncate text-xs text-muted">
+                    <p className="mt-0.5 truncate text-caption text-ink-muted">
                       {focus.length > 0
                         ? focus.join(' · ')
                         : org.notes ?? 'No criteria captured yet'}
                     </p>
                   </div>
                   {profile?.nextDeadline && (
-                    <span className="text-xs text-maybe">
+                    <span className="text-caption text-verdict-maybe">
                       Due {profile.nextDeadline.toLocaleDateString('en-US')}
                     </span>
                   )}
-                  <span className="text-xs text-muted">
+                  <span className="text-caption text-ink-muted">
                     {profile?.lastResearchedAt
                       ? `Researched ${profile.lastResearchedAt.toLocaleDateString('en-US')}`
                       : 'Never researched'}
                   </span>
-                  <span className="text-xs text-muted">{org._count.donorMatches} matches</span>
+                  <span className="text-caption text-ink-muted">{org._count.donorMatches} matches</span>
                 </li>
               );
             })}

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { requireOrgAccess } from '@/lib/auth';
-import { Card, Field, PageHeader, Tags } from '@/components/ui';
+import { Card, Field, NegativeScopePanel, PageHeader, Tags } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
 import { MatchRunner } from '@/components/MatchRunner';
 import { OrgContacts } from '@/components/OrgContacts';
@@ -64,7 +64,7 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
           <Card
             title="Operational profile"
             action={
-              <span className="text-xs text-muted">
+              <span className="text-caption text-ink-muted">
                 {profile?.interviewComplete ? 'Interview complete' : 'Interview incomplete'}
               </span>
             }
@@ -79,6 +79,9 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
                   <label className="label" htmlFor="doesWhat">What they really do</label>
                   <textarea id="doesWhat" name="doesWhat" rows={3} defaultValue={profile?.doesWhat ?? ''} className="input" />
                 </div>
+              </div>
+
+              <NegativeScopePanel>
                 <div>
                   <label className="label" htmlFor="doesNotDo">What they do NOT do</label>
                   <textarea id="doesNotDo" name="doesNotDo" rows={3} defaultValue={profile?.doesNotDo ?? ''} className="input" />
@@ -87,7 +90,7 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
                   <label className="label" htmlFor="doesNotServe">Who they do NOT serve</label>
                   <textarea id="doesNotServe" name="doesNotServe" rows={3} defaultValue={profile?.doesNotServe ?? ''} className="input" />
                 </div>
-              </div>
+              </NegativeScopePanel>
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
@@ -188,7 +191,7 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
 
           {session?.summary && (
             <Card title="Interview summary">
-              <p className="whitespace-pre-wrap text-sm">{session.summary}</p>
+              <p className="whitespace-pre-wrap text-body-sm">{session.summary}</p>
             </Card>
           )}
         </div>

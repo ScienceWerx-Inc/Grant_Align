@@ -143,7 +143,7 @@ export function MatchRunner({
         )}
 
         {run && run.total > 0 && (
-          <span className="text-xs tabular-nums text-muted">
+          <span className="text-caption tabular-nums text-ink-muted">
             {run.done} of {run.total} pairs
             {run.finished ? ' · finished' : ''}
           </span>
@@ -151,9 +151,9 @@ export function MatchRunner({
       </div>
 
       {run && (
-        <div className="mt-4 rounded-lg border border-line bg-white p-4">
+        <div className="mt-4 rounded-card border border-line bg-card p-4">
           <div
-            className="h-1.5 overflow-hidden rounded-full bg-surface"
+            className="h-1.5 overflow-hidden rounded-full bg-band"
             role="progressbar"
             aria-valuenow={percent}
             aria-valuemin={0}
@@ -168,9 +168,9 @@ export function MatchRunner({
             />
           </div>
 
-          <p className="mt-3 text-xs text-muted">
+          <p className="mt-3 text-caption text-ink-muted">
             {run.error ? (
-              <span className="text-skip">{run.error}</span>
+              <span className="text-verdict-skip">{run.error}</span>
             ) : run.finished ? (
               `Scored ${run.done} pairing${run.done === 1 ? '' : 's'}. Everything below is saved.`
             ) : run.total === 0 ? (
@@ -186,20 +186,20 @@ export function MatchRunner({
                 <li
                   key={`${outcome.seekerName}-${outcome.donorName}-${i}`}
                   // Newest row animates in; the rest are already settled.
-                  className={`flex items-center gap-3 rounded-md px-2 py-1.5 ${
-                    i === 0 ? 'animate-[fadeInUp_240ms_ease-out] bg-surface' : ''
+                  className={`flex items-center gap-3 rounded-control px-2 py-1.5 ${
+                    i === 0 ? 'animate-[rowInUp_240ms_ease-out] bg-band' : ''
                   }`}
                 >
                   {outcome.skippedReason ? (
-                    <span className="inline-flex w-[7.5rem] shrink-0 justify-center rounded-full bg-line/60 px-2.5 py-1 text-xs font-medium text-muted">
+                    <span className="inline-flex w-verdict shrink-0 justify-center rounded-pill bg-line/60 px-2.5 py-1 text-caption font-medium text-ink-muted">
                       not scored
                     </span>
                   ) : (
                     <VerdictBadge verdict={outcome.verdict} score={outcome.score} />
                   )}
-                  <span className="min-w-0 flex-1 truncate text-sm">
+                  <span className="min-w-0 flex-1 truncate text-body-sm">
                     {outcome.seekerName}
-                    <span className="mx-1.5 text-muted">→</span>
+                    <span className="mx-1.5 text-ink-muted">→</span>
                     {outcome.donorName}
                   </span>
                 </li>

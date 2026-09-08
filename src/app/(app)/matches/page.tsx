@@ -84,7 +84,7 @@ export default async function MatchesPage() {
                 key={seeker.id}
                 title={seeker.name}
                 action={
-                  <span className="text-xs text-muted">
+                  <span className="text-caption text-ink-muted">
                     {apply} recommended of {seeker.seekerMatches.length} evaluated
                   </span>
                 }

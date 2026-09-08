@@ -1,16 +1,9 @@
 import { addComplianceItem, updateCompliance } from '@/lib/actions';
-import { Card } from '@/components/ui';
+import { Card, StatusPill } from '@/components/ui';
 import { COMPLIANCE_LABELS, REQUIRED_COMPLIANCE } from '@/lib/profile-text';
 import type { ComplianceItem, ComplianceType } from '@prisma/client';
 
 const STATUSES = ['MISSING', 'PENDING', 'VERIFIED', 'EXPIRED'] as const;
-
-const STATUS_STYLE: Record<string, string> = {
-  MISSING: 'text-skip',
-  PENDING: 'text-maybe',
-  VERIFIED: 'text-apply',
-  EXPIRED: 'text-skip',
-};
 
 /**
  * Eligibility and compliance tracking (requirements §2.2).
@@ -28,24 +21,22 @@ export function ComplianceCard({ orgId, items }: { orgId: string; items: Complia
     <Card
       title="Eligibility & compliance"
       action={
-        <span className="text-xs text-muted">
+        <span className="text-caption text-ink-muted">
           {verified.length}/{REQUIRED_COMPLIANCE.length} required documents verified
         </span>
       }
     >
       <ul className="space-y-3">
         {items.map(item => (
-          <li key={item.id} className="rounded-md border border-line px-3 py-2.5">
+          <li key={item.id} className="rounded-control border border-line px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium">
+              <span className="text-body-sm font-medium">
                 {COMPLIANCE_LABELS[item.type]}
                 {REQUIRED_COMPLIANCE.includes(item.type) && (
-                  <span className="ml-1.5 text-xs font-normal text-muted">required</span>
+                  <span className="ml-1.5 text-caption font-normal text-ink-muted">required</span>
                 )}
               </span>
-              <span className={`text-xs font-semibold ${STATUS_STYLE[item.status]}`}>
-                {item.status.toLowerCase()}
-              </span>
+              <StatusPill status={item.status} label={item.status.toLowerCase()} />
             </div>
             <form
               action={updateCompliance.bind(null, item.id)}

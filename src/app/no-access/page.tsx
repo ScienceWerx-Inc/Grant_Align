@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getSessionUser, homePathFor } from '@/lib/auth';
+import { Overline } from '@/components/ui';
 
 export const metadata = { title: 'No access — Grant Align' };
 
@@ -14,15 +15,18 @@ export default async function NoAccessPage() {
   const user = await getSessionUser();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-6">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight">You do not have access to that</h1>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
+    <div className="flex min-h-screen items-center justify-center bg-band px-6">
+      <div className="w-full max-w-md rounded-card border border-line bg-card p-8 text-center shadow-raised">
+        <Overline>Access</Overline>
+        <h1 className="mt-3 text-h2 font-medium tracking-tight text-ink">
+          You do not have access to that
+        </h1>
+        <p className="mt-3 text-body-sm leading-relaxed text-ink-muted">
           {user
             ? 'Your account can only see its own organization. If you think you should have wider access, ask a platform administrator.'
             : 'Sign in to continue.'}
         </p>
-        <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href={user ? homePathFor(user) : '/login'} className="btn-primary">
             {user ? 'Back to your workspace' : 'Sign in'}
           </Link>

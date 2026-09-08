@@ -2,8 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Warm Civic base layer.
+ *
+ * Tokens live in tailwind.config.ts and are the only source of colour, size
+ * and spacing. Nothing in this file may introduce a raw hex or pixel value
+ * that is not itself defining a token.
+ */
+
 :root {
   color-scheme: light;
+
+  /* Dark mode is not shipped. These are the two hooks a future dark pass
+   * needs, kept honest by being referenced below rather than aspirational. */
+  --surface-page: theme('colors.paper');
+  --surface-raised: theme('colors.card');
 }
 
 html {
@@ -38,97 +51,168 @@ html {
 }
 
 body {
-  @apply bg-surface text-ink antialiased;
+  @apply bg-paper font-sans text-body text-ink-body antialiased;
+}
+
+/*
+ * One focus treatment for the whole application, set once on :focus-visible so
+ * no component can quietly opt out of it. `outline` rather than a ring utility
+ * because outlines follow the border box through wraps and rounded corners,
+ * and are the one property forced-colors mode reliably preserves.
+ */
+:focus-visible {
+  @apply outline-none;
+  outline: 2px solid theme('colors.brand.DEFAULT');
+  outline-offset: 2px;
+  border-radius: theme('borderRadius.control');
 }
 
 @layer components {
-  /*
-   * Hyperstudio component layer (reference_ui.md).
-   *
-   * The rule the whole system runs on: elevation comes from 1px borders and
-   * contrast, never from shadow, gradient or blur. There is exactly one filled
-   * surface on the page - the white pill - and everything else is drawn.
-   */
-  .rule {
-    @apply border-t border-graphite;
-  }
-  .hairline {
-    @apply border border-graphite;
-  }
-  .pill-white {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3
-           font-sans text-[14px] font-normal uppercase tracking-[0.02em] text-obsidian
-           transition hover:bg-chalk;
-  }
-  .btn-ghost-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-white/90
-           px-5 py-2.5 font-sans text-[14px] font-normal uppercase tracking-[0.02em]
-           text-white transition hover:bg-white hover:text-obsidian;
-  }
-  .status-pill {
-    @apply inline-flex items-center gap-2 rounded border border-graphite bg-[#1a1a1a]
-           px-3.5 py-2 font-sans text-[12px] uppercase tracking-[0.05em] text-smoke;
-  }
-  .meta {
-    @apply font-mono text-[13px] uppercase tracking-[-0.022em] text-smoke;
+  /* ---------------------------------------------------------------- text */
+
+  /* The eyebrow above a section heading. Case, tracking and colour as one
+   * decision, so it cannot drift between sections. */
+  .eyebrow {
+    @apply font-mono text-overline uppercase text-ink-muted;
   }
 
+  .measure {
+    @apply max-w-prose;
+  }
+
+  /*
+   * Dissolves an image's edges into the page.
+   *
+   * For artwork that has no alpha channel and cannot be given one. The hero
+   * illustration is a drawn room: the white behind the people is a wall, and
+   * it is the same 255,255,255 as the whiteboard, the paper and the shoes, so
+   * no colour key can take one without taking the others. Feathering the
+   * border removes the thing that actually reads as a background - the hard
+   * rectangular edge - and lets the pale interior sit on the pale page.
+   *
+   * Two gradients intersected rather than a radial one: a radial vignette
+   * pulls the people standing at the left and right edges into the fade.
+   */
+  .image-feather {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 90%, transparent 100%),
+      linear-gradient(to right, transparent 0%, #000 6%, #000 94%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+
+  /* --------------------------------------------------------------- panels */
+
   .card {
-    @apply rounded-lg border border-line bg-white;
+    @apply rounded-card border border-line bg-card;
   }
   .card-header {
     @apply flex items-center justify-between gap-3 border-b border-line px-5 py-3;
   }
   .card-title {
-    @apply text-sm font-semibold tracking-tight;
+    @apply text-h4 font-medium tracking-tight text-ink;
   }
   .card-body {
     @apply px-5 py-4;
   }
+
+  /* --------------------------------------------------------------- fields */
+
   .label {
-    @apply mb-1 block text-xs font-medium text-muted;
+    @apply mb-1.5 block text-caption font-medium text-ink-muted;
   }
+
+  /*
+   * A civic form field reads as a field because of its edge. The border is a
+   * real weight (4.25:1 on paper) rather than a hairline, which is also what
+   * keeps it identifiable under WCAG 1.4.11 without relying on the fill alone.
+   */
   .input {
-    @apply w-full rounded-md border border-line bg-white px-3 py-2 text-sm outline-none transition
-           placeholder:text-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/15;
+    @apply w-full rounded-control border border-line-control bg-card px-3 py-2 text-body-sm
+           text-ink-body transition placeholder:text-ink-faint
+           hover:border-ink-muted
+           focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25
+           disabled:cursor-not-allowed disabled:bg-band disabled:text-ink-faint;
   }
-  .btn {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium
-           transition disabled:cursor-not-allowed disabled:opacity-50;
+  .input-invalid {
+    @apply border-danger focus:border-danger focus:ring-danger/25;
   }
-  .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-dark;
+  .field-hint {
+    @apply mt-1.5 text-caption text-ink-muted;
   }
-  .btn-secondary {
-    @apply btn border border-line bg-white text-ink hover:bg-surface;
-  }
-  .btn-ghost {
-    @apply btn text-muted hover:bg-surface hover:text-ink;
-  }
-  .chip {
-    @apply inline-flex items-center rounded-full bg-brand-light px-2.5 py-0.5 text-xs font-medium text-brand-dark;
+  .field-error {
+    @apply mt-1.5 flex items-start gap-1.5 text-caption font-medium text-danger;
   }
   .field-empty {
-    @apply text-sm italic text-muted;
+    @apply text-body-sm italic text-ink-faint;
   }
+
+  /* -------------------------------------------------------------- buttons */
+
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-control
+           px-3.5 py-2 text-body-sm font-medium transition
+           disabled:pointer-events-none disabled:opacity-55;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-brand-on hover:bg-brand-hover active:bg-brand-active;
+  }
+  .btn-secondary {
+    @apply btn border border-line-strong bg-card text-ink hover:border-ink-muted hover:bg-band;
+  }
+  .btn-ghost {
+    @apply btn text-ink-muted hover:bg-band hover:text-ink;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:brightness-110 active:brightness-95;
+  }
+  .btn-link {
+    @apply inline-flex items-center gap-1 rounded-control text-body-sm font-medium
+           text-brand-ink underline-offset-4 transition hover:underline;
+  }
+  /* Square by construction so an icon never sits off-centre. */
+  .btn-icon {
+    @apply btn h-9 w-9 shrink-0 p-0 text-ink-muted hover:bg-band hover:text-ink;
+  }
+
+  /*
+   * Size modifiers are declared AFTER every variant on purpose. A variant
+   * pulls in `.btn`'s padding through @apply, so if these came first
+   * `btn-secondary btn-sm` would silently render at medium - the cascade,
+   * not the class order in the attribute, decides.
+   */
+  .btn-sm {
+    @apply gap-1.5 px-2.5 py-1.5 text-caption;
+  }
+  .btn-lg {
+    @apply gap-2.5 rounded-pill px-6 py-3 text-body;
+  }
+
+  /* ------------------------------------------------------ chips and pills */
+
+  .chip {
+    @apply inline-flex items-center rounded-pill bg-brand-tint px-2.5 py-0.5
+           text-caption font-medium text-brand-ink;
+  }
+  .chip-neutral {
+    @apply inline-flex items-center rounded-pill bg-band px-2.5 py-0.5
+           text-caption font-medium text-ink-muted;
+  }
+
 }
 
 /*
- * A slow drift on the hero's glow. Long and subtle on purpose: the point is
- * that the page feels alive rather than that anyone notices it moving.
+ * Newly-arrived rows in a live run slide up as they land. Short enough to
+ * register without delaying the next one, which can arrive within a second.
+ *
+ * Named rowInUp, not fadeInUp: the landing page defines a fadeInUp of its own
+ * through tailwind.config.ts, and two @keyframes blocks sharing a name do not
+ * merge - the last one in the stylesheet silently replaces the other. This one
+ * travels 6px because it is a table row; that one travels 20px because it is a
+ * hero. Whichever lost would have been wrong somewhere.
  */
-@keyframes drift {
-  0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(2%, -3%, 0) scale(1.08);
-  }
-}
-
-/* Newly-arrived rows in a live run slide up as they land. Short enough to
-   register without delaying the next one, which can arrive within a second. */
-@keyframes fadeInUp {
+@keyframes rowInUp {
   from {
     opacity: 0;
     transform: translateY(6px);

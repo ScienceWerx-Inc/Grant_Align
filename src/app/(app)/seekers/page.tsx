@@ -58,20 +58,20 @@ export default async function SeekersPage() {
               return (
                 <li key={org.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0 flex-1">
-                    <Link href={`/seekers/${org.id}`} className="text-sm font-medium hover:text-brand">
+                    <Link href={`/seekers/${org.id}`} className="text-body-sm font-medium hover:text-brand-ink">
                       {org.name}
                     </Link>
-                    <p className="mt-0.5 truncate text-xs text-muted">
+                    <p className="mt-0.5 truncate text-caption text-ink-muted">
                       {org.seekerProfile?.doesWhat ?? org.mission ?? 'No profile captured yet'}
                     </p>
                   </div>
-                  <span className="text-xs text-muted">
+                  <span className="text-caption text-ink-muted">
                     {org.seekerProfile?.interviewComplete ? 'Interviewed' : 'Interview pending'}
                   </span>
-                  <span className="text-xs text-muted">
+                  <span className="text-caption text-ink-muted">
                     {verified}/{REQUIRED_COMPLIANCE.length} docs
                   </span>
-                  <span className="text-xs text-muted">{org._count.seekerMatches} matches</span>
+                  <span className="text-caption text-ink-muted">{org._count.seekerMatches} matches</span>
                 </li>
               );
             })}

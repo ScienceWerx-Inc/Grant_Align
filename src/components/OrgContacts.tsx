@@ -12,17 +12,17 @@ export function OrgContacts({ orgId, contacts }: { orgId: string; contacts: Cont
           {contacts.map(contact => (
             <li key={contact.id} className="flex items-start gap-3 py-2.5 first:pt-0">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">
+                <p className="text-body-sm font-medium">
                   {contact.name}
                   {contact.isPrimary && <span className="chip ml-2">Primary</span>}
                 </p>
-                <p className="text-xs text-muted">
+                <p className="text-caption text-ink-muted">
                   {[contact.title, contact.email, contact.phone].filter(Boolean).join(' · ') ||
                     'No details'}
                 </p>
               </div>
               <form action={deleteContact.bind(null, contact.id)} className="no-print">
-                <button type="submit" className="btn-ghost px-2 py-1 text-xs">
+                <button type="submit" className="btn-ghost px-2 py-1 text-caption">
                   Remove
                 </button>
               </form>
@@ -36,8 +36,8 @@ export function OrgContacts({ orgId, contacts }: { orgId: string; contacts: Cont
         <input name="contactTitle" placeholder="Title" className="input" />
         <input name="contactEmail" type="email" placeholder="Email" className="input" />
         <input name="contactPhone" placeholder="Phone" className="input" />
-        <label className="flex items-center gap-2 text-xs text-muted">
-          <input type="checkbox" name="isPrimary" className="rounded border-line" />
+        <label className="flex items-center gap-2 text-caption text-ink-muted">
+          <input type="checkbox" name="isPrimary" className="h-4 w-4 rounded-sm border-line-control text-brand focus:ring-2 focus:ring-brand/25" />
           Primary contact
         </label>
         <div className="flex justify-end">

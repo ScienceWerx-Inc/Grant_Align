@@ -82,10 +82,12 @@ export function InterviewPanel({
   const noun = role === 'SEEKER' ? 'organization' : 'foundation';
 
   return (
+    // A fixed height, not a scale step: the transcript scrolls inside itself,
+    // so the panel has to stop somewhere the composer stays on screen.
     <div className="flex h-[32rem] flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto pr-1">
         {messages.length === 0 && (
-          <div className="rounded-md bg-surface px-4 py-6 text-center text-sm text-muted">
+          <div className="rounded-control bg-band px-4 py-6 text-center text-body-sm text-ink-muted">
             <p>
               The AI interviewer asks about what this {noun} really does — and, just as importantly,
               what it does not.
@@ -106,11 +108,13 @@ export function InterviewPanel({
             key={index}
             className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
           >
+            {/* 85%: a bubble that fills the column loses the alternating
+                left/right rhythm that shows who is speaking. */}
             <div
-              className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-3.5 py-2.5 text-sm ${
+              className={`max-w-[85%] whitespace-pre-wrap rounded-card px-3.5 py-2.5 text-body-sm ${
                 message.role === 'user'
-                  ? 'bg-brand text-white'
-                  : 'border border-line bg-white text-ink'
+                  ? 'bg-brand text-brand-on'
+                  : 'border border-line bg-card text-ink-body'
               }`}
             >
               {message.content}
@@ -120,7 +124,7 @@ export function InterviewPanel({
 
         {busy && messages.length > 0 && (
           <div className="flex justify-start">
-            <div className="rounded-lg border border-line bg-white px-3.5 py-2.5 text-sm text-muted">
+            <div className="rounded-card border border-line bg-card px-3.5 py-2.5 text-body-sm text-ink-muted">
               Thinking…
             </div>
           </div>
@@ -129,11 +133,11 @@ export function InterviewPanel({
       </div>
 
       {error && (
-        <p className="mt-3 rounded-md bg-skip/10 px-3 py-2 text-xs text-skip">{error}</p>
+        <p className="mt-3 rounded-control bg-verdict-skip/10 px-3 py-2 text-caption text-verdict-skip">{error}</p>
       )}
 
       {done ? (
-        <p className="mt-3 rounded-md bg-apply/10 px-3 py-2 text-xs text-apply">
+        <p className="mt-3 rounded-control bg-verdict-apply/10 px-3 py-2 text-caption text-verdict-apply">
           Interview complete — the profile beside this has been filled in. You can keep talking to
           refine it.
         </p>

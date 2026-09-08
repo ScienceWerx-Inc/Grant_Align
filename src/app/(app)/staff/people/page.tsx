@@ -38,9 +38,9 @@ export default async function PeoplePage() {
             {users.map(user => (
               <li key={user.id} className="py-4 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="text-sm font-medium">{user.name || user.email}</span>
-                  {user.name && <span className="text-xs text-muted">{user.email}</span>}
-                  <span className="ml-auto text-xs text-muted">
+                  <span className="text-body-sm font-medium">{user.name || user.email}</span>
+                  {user.name && <span className="text-caption text-ink-muted">{user.email}</span>}
+                  <span className="ml-auto text-caption text-ink-muted">
                     {user.org?.name ?? (user.role === 'STAFF' ? 'all organizations' : 'no organization')}
                   </span>
                 </div>
@@ -72,7 +72,7 @@ export default async function PeoplePage() {
         )}
       </Card>
 
-      <p className="mt-4 text-xs leading-relaxed text-muted">
+      <p className="mt-4 text-caption leading-relaxed text-ink-muted">
         A seeker or funder account sees exactly one organization. Staff see everything, so grant that
         role only to people running the platform.
       </p>
