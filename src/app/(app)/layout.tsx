@@ -23,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           { href: '/seekers', label: 'Grant seekers' },
           { href: '/donors', label: 'Grant givers' },
           { href: '/matches', label: 'Matches' },
+          { href: '/staff/messages', label: 'Messages' },
         ]
       : user.role === 'SEEKER'
         ? [

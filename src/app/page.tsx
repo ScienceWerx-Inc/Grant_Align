@@ -52,7 +52,7 @@ async function LiveStats({ layout = 'strip' }: { layout?: 'strip' | 'cards' }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-y-10 md:gap-y-0 md:divide-x divide-line/50">
         {data.map(({ value, label, Icon }) => (
           <div key={label} className="flex flex-col items-center text-center px-4">
-            <div className="text-brand mb-4 scale-110"><Icon /></div>
+            <div className="text-brand-ink mb-4 scale-110"><Icon /></div>
             <div className="text-[40px] leading-none font-semibold text-ink mb-2"><AnimatedCounter value={value} /></div>
             <div className="text-body-sm text-ink-muted font-medium tracking-wide uppercase">{label}</div>
           </div>
@@ -65,9 +65,9 @@ async function LiveStats({ layout = 'strip' }: { layout?: 'strip' | 'cards' }) {
     <div className="grid grid-cols-2 gap-x-8 gap-y-12">
       {data.map(({ value, label, Icon }) => (
         <div key={label} className="flex flex-col items-center text-center">
-          <div className="text-com-green mb-3"><Icon /></div>
-          <div className="text-3xl font-semibold text-com-navy mb-1"><AnimatedCounter value={value} /></div>
-          <div className="text-[14px] text-com-navy opacity-80">{label}</div>
+          <div className="text-brand-ink mb-3"><Icon /></div>
+          <div className="text-3xl font-semibold text-ink mb-1"><AnimatedCounter value={value} /></div>
+          <div className="text-[14px] text-ink opacity-80">{label}</div>
         </div>
       ))}
     </div>
@@ -88,6 +88,60 @@ function LiveStatsSkeleton() {
   );
 }
 
+/**
+ * The headline pairing, read live.
+ *
+ * This block used to hard-code "92%" against two named real organizations,
+ * while the evidence card further down the same page rendered the engine's
+ * actual score for that same pairing - 98. Two different numbers for one
+ * match, on one page, one of them simply wrong.
+ *
+ * Names and score now come from the same query as everything else. The
+ * photographs and the four descriptive lines under each are illustrative.
+ */
+async function FeaturedMatch() {
+  const stats = await landingData();
+  if (!stats?.sample) return null;
+  const seekerName = stats.sample.seeker.name;
+  const donorName = stats.sample.donor.name;
+  const score = stats.sample.score;
+
+  return (
+    <div className="relative max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 mb-24 z-10">
+      {/* Connecting line */}
+      <div className="hidden md:block absolute top-1/2 left-0 w-full border-t border-dashed border-line-strong -z-10"></div>
+      
+      <div className="w-full md:w-[360px] relative">
+        <span className="text-[11px] font-bold text-brand-ink uppercase tracking-widest mb-5 block">Nonprofit</span>
+        <img src="/images/match-kitchen.jpg" alt="Kitchen" className="w-full h-40 object-cover contrast-[1.05] mix-blend-multiply mb-6" />
+        <h3 className="font-semibold text-h3 text-brand-ink mb-4">{seekerName}</h3>
+        <div className="space-y-2 text-body-sm text-ink-muted">
+          <p>Food Security</p>
+          <p>Frederick County, MD</p>
+          <p>Community Programs</p>
+          <p>501(c)(3)</p>
+        </div>
+      </div>
+
+      <div className="relative shrink-0 w-48 h-48 bg-paper rounded-full border-8 border-paper flex flex-col items-center justify-center shadow-overlay z-10 before:absolute before:inset-0 before:rounded-full before:border before:border-line">
+        <span className="text-display font-semibold text-brand-ink leading-none">{score}%</span>
+        <span className="text-overline text-ink tracking-widest mt-2 uppercase">Match</span>
+      </div>
+
+      <div className="w-full md:w-[360px] relative">
+        <span className="text-[11px] font-bold text-accent uppercase tracking-widest mb-5 block">Funder</span>
+        <img src="/images/match-foundation.jpg" alt="Foundation" className="w-full h-40 object-cover contrast-[1.05] mix-blend-multiply mb-6" />
+        <h3 className="font-semibold text-h3 text-brand-ink mb-4">{donorName}</h3>
+        <div className="space-y-2 text-body-sm text-ink-muted">
+          <p>Hunger Relief</p>
+          <p>Maryland</p>
+          <p>Community Health</p>
+          <p>Grants $5K – $50K</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 async function ProofOfWork() {
   const stats = await landingData();
   if (!stats?.sample) return null;
@@ -101,7 +155,7 @@ export default function LandingPage() {
       <header className="h-[80px] bg-paper/90 backdrop-blur sticky top-0 z-50 flex items-center justify-between px-6 md:px-12 border-b border-line/40">
         <Link href="/" className="flex items-center text-2xl font-bold tracking-tight">
           <span className="text-ink">Grant</span>
-          <span className="text-brand">Align</span>
+          <span className="text-brand-ink">Align</span>
         </Link>
         <nav className="hidden md:flex items-center gap-10">
           {[
@@ -109,7 +163,7 @@ export default function LandingPage() {
             ['#how', 'How It Works'],
             ['#engine', 'The Engine'],
           ].map(([href, label]) => (
-            <a key={href} href={href} className="text-body-sm font-medium text-ink-muted hover:text-brand transition-colors">
+            <a key={href} href={href} className="inline-flex min-h-[44px] items-center text-body-sm font-medium text-ink-muted hover:text-brand-ink transition-colors">
               {label}
             </a>
           ))}
@@ -123,18 +177,18 @@ export default function LandingPage() {
       <section className="px-6 md:px-12 pt-16 md:pt-28 pb-24 max-w-page mx-auto relative text-left">
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
           <div className="flex-1 max-w-[720px] flex flex-col items-start opacity-0 animate-fade-in-up">
-            <span className="block text-overline text-brand mb-6 uppercase tracking-widest">PEOPLE • PURPOSE • POSSIBILITIES</span>
-            <h1 className="text-display font-semibold text-brand text-balance">
+            <span className="block text-overline text-brand-ink mb-6 uppercase tracking-widest">PEOPLE • PURPOSE • POSSIBILITIES</span>
+            <h1 className="text-display font-semibold text-brand-ink text-balance">
               Find the grants that actually fit your mission.
             </h1>
             <p className="mt-8 text-body-lg text-ink-body max-w-lg text-balance">
               Matching local non-profits to regional funders based on what an organization actually does — and explicitly does not do — rather than on mission-statement language.
             </p>
             <div className="mt-12 flex flex-wrap items-center gap-4">
-              <Link href="/login" className="inline-flex h-[52px] items-center px-8 rounded-pill bg-brand text-brand-on font-semibold hover:bg-brand-hover transition-all hover:scale-105 shadow-raised text-body-sm">
-                Get a quote &rarr;
+              <Link href="/contact" className="inline-flex h-[52px] items-center px-8 rounded-pill bg-brand text-brand-on font-semibold hover:bg-brand-hover transition-all hover:scale-105 shadow-raised text-body-sm">
+                Contact us &rarr;
               </Link>
-              <a href="#how" className="inline-flex h-[52px] items-center px-8 rounded-pill border-2 border-brand bg-transparent text-brand font-semibold hover:bg-brand-tint transition-all hover:scale-105 text-body-sm">
+              <a href="#how" className="inline-flex h-[52px] items-center px-8 rounded-pill border-2 border-brand bg-transparent text-brand-ink font-semibold hover:bg-brand-tint transition-all hover:scale-105 text-body-sm">
                 See how it works &rarr;
               </a>
             </div>
@@ -166,15 +220,15 @@ export default function LandingPage() {
       <section id="why" className="px-6 md:px-12 mb-32 max-w-page mx-auto">
         <div className="grid md:grid-cols-[1fr_1.1fr] gap-16 md:gap-24 items-center">
           <div>
-            <span className="block text-overline text-brand mb-6 uppercase">A Common Challenge</span>
-            <h2 className="text-h1 font-semibold text-brand text-balance mb-8">
+            <span className="block text-overline text-brand-ink mb-6 uppercase">A Common Challenge</span>
+            <h2 className="text-h1 font-semibold text-brand-ink text-balance mb-8">
               Great work is happening.<br/>
               But finding the right funding can be difficult.
             </h2>
             <p className="text-body-lg text-ink-body mb-6">
               Nonprofits spend valuable time searching for grants that aren't the right fit. Funders receive applications that don't align with their priorities. Good ideas get missed — and communities lose out.
             </p>
-            <p className="text-h4 font-medium text-brand">
+            <p className="text-h4 font-medium text-brand-ink">
               There's a better way.
             </p>
           </div>
@@ -190,7 +244,7 @@ export default function LandingPage() {
         <div className="max-w-page mx-auto">
           <div className="text-center mb-20">
             <span className="block text-overline text-accent mb-6 uppercase">One Platform, Two Sides</span>
-            <h2 className="text-h2 md:text-h1 font-semibold text-brand text-balance">
+            <h2 className="text-h2 md:text-h1 font-semibold text-brand-ink text-balance">
               A stronger, more connected community.
             </h2>
           </div>
@@ -198,10 +252,10 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-10">
             {/* 14. NONPROFIT CARD */}
             <div className="bg-brand-tint rounded-panel p-10 md:p-16 border border-brand/5 shadow-raised transition-transform hover:-translate-y-1">
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-brand mb-10 shadow-sm">
+              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-brand-ink mb-10 shadow-sm">
                 <div className="scale-125"><IconPeople /></div>
               </div>
-              <h3 className="text-h2 font-semibold text-brand mb-6">For grant seekers</h3>
+              <h3 className="text-h2 font-semibold text-brand-ink mb-6">For grant seekers</h3>
               <p className="text-body-lg text-ink-body mb-12">
                 Save time, find the right opportunities, and focus on what you do best — making an impact.
               </p>
@@ -213,7 +267,7 @@ export default function LandingPage() {
                   'See why each one is a good fit'
                 ].map((item, i) => (
                   <li key={i} className="flex gap-5 items-start">
-                    <span className="font-semibold text-brand mt-0.5 opacity-60 text-body-sm">{i+1}</span>
+                    <span className="font-semibold text-brand-ink mt-0.5 opacity-60 text-body-sm">{i+1}</span>
                     <span className="font-medium text-ink">{item}</span>
                   </li>
                 ))}
@@ -255,8 +309,8 @@ export default function LandingPage() {
       {/* 16. MATCHING SECTION */}
       <section className="px-6 md:px-12 py-32 max-w-page mx-auto relative">
         <div className="text-center max-w-2xl mx-auto mb-24">
-          <span className="block text-overline text-brand mb-4 uppercase tracking-widest">How It Works</span>
-          <h2 className="text-h2 md:text-h1 font-semibold text-brand text-balance mb-6">
+          <span className="block text-overline text-brand-ink mb-4 uppercase tracking-widest">How It Works</span>
+          <h2 className="text-h2 md:text-h1 font-semibold text-brand-ink text-balance mb-6">
             Real matches. Real impact.
           </h2>
           <p className="text-body-lg text-ink-body">
@@ -265,42 +319,12 @@ export default function LandingPage() {
         </div>
 
         {/* 17. MATCH VISUALIZATION */}
-        <div className="relative max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-12 mb-24 z-10">
-          {/* Connecting line */}
-          <div className="hidden md:block absolute top-1/2 left-0 w-full border-t border-dashed border-line-strong -z-10"></div>
-          
-          <div className="w-full md:w-[360px] relative">
-            <span className="text-[11px] font-bold text-brand uppercase tracking-widest mb-5 block">Nonprofit</span>
-            <img src="/images/match-kitchen.jpg" alt="Kitchen" className="w-full h-40 object-cover contrast-[1.05] mix-blend-multiply mb-6" />
-            <h4 className="font-semibold text-h3 text-brand mb-4">Frederick Community Kitchen</h4>
-            <div className="space-y-2 text-body-sm text-ink-muted">
-              <p>Food Security</p>
-              <p>Frederick County, MD</p>
-              <p>Community Programs</p>
-              <p>501(c)(3)</p>
-            </div>
-          </div>
-
-          <div className="relative shrink-0 w-48 h-48 bg-paper rounded-full border-8 border-paper flex flex-col items-center justify-center shadow-overlay z-10 before:absolute before:inset-0 before:rounded-full before:border before:border-line">
-            <span className="text-display font-semibold text-brand leading-none">92%</span>
-            <span className="text-overline text-ink tracking-widest mt-2 uppercase">Match</span>
-          </div>
-
-          <div className="w-full md:w-[360px] relative">
-            <span className="text-[11px] font-bold text-accent uppercase tracking-widest mb-5 block">Funder</span>
-            <img src="/images/match-foundation.jpg" alt="Foundation" className="w-full h-40 object-cover contrast-[1.05] mix-blend-multiply mb-6" />
-            <h4 className="font-semibold text-h3 text-brand mb-4">Delaplaine Foundation</h4>
-            <div className="space-y-2 text-body-sm text-ink-muted">
-              <p>Hunger Relief</p>
-              <p>Maryland</p>
-              <p>Community Health</p>
-              <p>Grants $5K – $50K</p>
-            </div>
-          </div>
-        </div>
+        <Suspense fallback={null}>
+          <FeaturedMatch />
+        </Suspense>
 
         {/* 18. MATCHING STATS */}
-        <div className="max-w-4xl mx-auto border-t border-com-border pt-16">
+        <div className="max-w-4xl mx-auto border-t border-line pt-16">
           <Suspense fallback={<LiveStatsSkeleton />}>
             <LiveStats layout="strip" />
           </Suspense>
@@ -313,7 +337,7 @@ export default function LandingPage() {
           <div className="flex flex-col gap-24">
             <div className="max-w-5xl mx-auto text-center">
               <span className="block text-overline text-accent mb-6 uppercase">The Engine</span>
-              <h2 className="text-h2 md:text-h1 font-semibold text-brand text-balance mb-8">
+              <h2 className="text-h2 md:text-h1 font-semibold text-brand-ink text-balance mb-8">
                 Six weighted dimensions,<br/>
                 so a seeker can see which one sank a match.
               </h2>
@@ -323,15 +347,22 @@ export default function LandingPage() {
               
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-left">
                 {[
+                  /*
+                   * The engine's own six, in its order and its wording - see
+                   * DIMENSIONS in src/ai/flows/scoreMatch.ts. This list used to
+                   * advertise "Grant-making organization size", which the
+                   * engine does not score at all, and omit donor exclusions,
+                   * which carries 15% of the result.
+                   */
                   { label: 'Mission & program fit', Icon: IconCheckCircle },
-                  { label: 'Geographic eligibility', Icon: IconLocation },
                   { label: 'Population served', Icon: IconPeople },
-                  { label: 'Size of awards', Icon: IconChart },
-                  { label: 'Grant-making organization size', Icon: IconBuilding },
-                  { label: 'Documentation requirements', Icon: IconDocument }
+                  { label: 'Geographic eligibility', Icon: IconLocation },
+                  { label: 'Clear of donor exclusions', Icon: IconBuilding },
+                  { label: 'Grant size vs. organization scale', Icon: IconChart },
+                  { label: 'Documentation readiness', Icon: IconDocument }
                 ].map(({ label, Icon }) => (
                   <div key={label} className="flex items-center gap-4 bg-white p-4 rounded-card border border-line shadow-sm">
-                    <div className="text-brand shrink-0"><Icon /></div>
+                    <div className="text-brand-ink shrink-0"><Icon /></div>
                     <span className="text-body-sm font-medium text-ink leading-tight">{label}</span>
                   </div>
                 ))}
@@ -347,7 +378,10 @@ export default function LandingPage() {
       </section>
 
       {/* 21. REAL DATA / EVIDENCE SECTION */}
-      <section className="py-32 px-6 max-w-page mx-auto">
+      {/* overflow-x-clip: the decorative -inset-8 blur below bleeds 32px past its
+          parent, which pushed the whole document 8px wide at 375px. Clipping only
+          the x axis contains it without flattening the vertical bleed. */}
+      <section className="py-32 px-6 max-w-page mx-auto overflow-x-clip">
         <div className="grid lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-12">
             {[
@@ -356,11 +390,11 @@ export default function LandingPage() {
               { title: 'Blockers over scores', body: 'A stated exclusion, an out-of-area address or missing mandatory paperwork forces a skip regardless of the numeric fit.', Icon: IconChart },
             ].map(({title, body, Icon}) => (
               <div key={title} className="flex gap-6 items-start">
-                <div className="shrink-0 w-14 h-14 rounded-full bg-brand-tint text-brand flex items-center justify-center border border-brand/10">
+                <div className="shrink-0 w-14 h-14 rounded-full bg-brand-tint text-brand-ink flex items-center justify-center border border-brand/10">
                   <Icon />
                 </div>
                 <div>
-                  <h4 className="text-h4 font-semibold text-brand mb-2">{title}</h4>
+                  <h3 className="text-h4 font-semibold text-brand-ink mb-2">{title}</h3>
                   <p className="text-body text-ink-muted leading-relaxed">{body}</p>
                 </div>
               </div>
@@ -384,11 +418,11 @@ export default function LandingPage() {
             <img src="/images/human-leader.jpg" alt="Community leader" className="w-full h-auto object-cover contrast-[1.05] mix-blend-multiply" />
           </div>
           <div className="relative isolate px-8 md:px-12">
-            <span className="block text-overline text-brand mb-8 uppercase">People. Partnerships. Progress.</span>
-            <blockquote className="text-display font-serif italic text-brand leading-[1.1] mb-8 relative">
-              <span className="absolute -left-8 -top-4 text-[80px] text-brand/20 font-serif">“</span>
+            <span className="block text-overline text-brand-ink mb-8 uppercase">People. Partnerships. Progress.</span>
+            <blockquote className="text-display font-serif italic text-brand-ink leading-[1.1] mb-8 relative">
+              <span className="absolute -left-8 -top-4 text-[80px] text-brand-ink/20 font-serif">“</span>
               The right partnership can turn a good idea into lasting change.
-              <span className="absolute -bottom-8 -right-4 text-[80px] text-brand/20 font-serif leading-none">”</span>
+              <span className="absolute -bottom-8 -right-4 text-[80px] text-brand-ink/20 font-serif leading-none">”</span>
             </blockquote>
             <div className="w-20 h-1 bg-accent rounded-pill"></div>
           </div>
@@ -399,14 +433,14 @@ export default function LandingPage() {
       <section className="px-6 py-32">
         <div className="max-w-5xl mx-auto bg-brand-tint rounded-[40px] p-16 md:p-24 text-center relative overflow-hidden border border-brand/5 shadow-overlay">
           <div className="relative z-10 max-w-2xl mx-auto">
-            <h2 className="text-h1 font-semibold text-brand text-balance mb-6">See it against real Frederick County funders.</h2>
-            <p className="text-body-lg text-ink-body mb-12">Live criteria, real IRS filings, and verdicts you can argue with.</p>
+            <h2 className="text-h1 font-semibold text-brand-ink text-balance mb-6">See it against real Frederick County funders.</h2>
+            <p className="text-body-lg text-ink-body mb-12">Live criteria, real IRS filings, and a reason behind every verdict.</p>
             <Link href="/login" className="inline-flex h-[56px] items-center px-10 rounded-pill bg-brand text-brand-on font-semibold text-body-sm hover:bg-brand-hover transition-colors shadow-raised">
               Sign in &rarr;
             </Link>
           </div>
           {/* Decorative Phrase */}
-          <div className="absolute right-12 top-16 font-serif italic text-brand/40 text-h3 transform rotate-3 hidden lg:block text-right">
+          <div className="absolute right-12 top-16 font-serif italic text-brand-ink/40 text-h3 transform rotate-3 hidden lg:block text-right">
             Good ideas<br/>build brighter<br/>communities. <span className="text-accent">♥</span>
           </div>
           {/* Organic Background Decorations */}
@@ -421,17 +455,17 @@ export default function LandingPage() {
           <div>
             <div className="text-xl font-bold tracking-tight mb-1">
               <span className="text-ink">Grant</span>
-              <span className="text-brand">Align</span>
+              <span className="text-brand-ink">Align</span>
             </div>
             <div className="text-[13px] text-ink-muted font-medium">People. Progress. Possibilities.</div>
           </div>
           <nav className="flex items-center gap-8 text-body-sm font-medium text-ink-body">
-            <a href="#why" className="hover:text-brand transition-colors">Why It Matters</a>
-            <a href="#how" className="hover:text-brand transition-colors">How It Works</a>
-            <a href="#engine" className="hover:text-brand transition-colors">The Engine</a>
-            <a href="#" className="hover:text-brand transition-colors">Contact</a>
+            <a href="#why" className="inline-flex min-h-[44px] items-center hover:text-brand-ink transition-colors">Why It Matters</a>
+            <a href="#how" className="inline-flex min-h-[44px] items-center hover:text-brand-ink transition-colors">How It Works</a>
+            <a href="#engine" className="inline-flex min-h-[44px] items-center hover:text-brand-ink transition-colors">The Engine</a>
+            <Link href="/contact" className="inline-flex min-h-[44px] items-center hover:text-brand-ink transition-colors">Contact</Link>
           </nav>
-          <Link href="/login" className="text-body-sm font-semibold text-brand hover:underline">
+          <Link href="/login" className="inline-flex min-h-[44px] items-center text-body-sm font-semibold text-brand-ink hover:underline">
             Sign In
           </Link>
         </div>

@@ -13,7 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 
 /** Paths reachable without signing in. */
-const PUBLIC_PATHS = ['/', '/login', '/auth', '/no-access'];
+const PUBLIC_PATHS = ['/', '/login', '/contact', '/auth', '/no-access'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`));
