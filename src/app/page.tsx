@@ -436,7 +436,7 @@ export default function LandingPage() {
             <h2 className="text-h1 font-semibold text-brand-ink text-balance mb-6">See it against real Frederick County funders.</h2>
             <p className="text-body-lg text-ink-body mb-12">Live criteria, real IRS filings, and a reason behind every verdict.</p>
             <Link href="/login" className="inline-flex h-[56px] items-center px-10 rounded-pill bg-brand text-brand-on font-semibold text-body-sm hover:bg-brand-hover transition-colors shadow-raised">
-              Sign in &rarr;
+              Get a quote &rarr;
             </Link>
           </div>
           {/* Decorative Phrase */}
