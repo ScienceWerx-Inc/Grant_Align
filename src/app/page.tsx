@@ -202,7 +202,7 @@ export default function LandingPage() {
 
           {/* 7. HERO ILLUSTRATION */}
           <div className="flex-1 relative w-full opacity-0 animate-fade-in-up-delay-1 mix-blend-multiply">
-             <img src="/images/new_hero_community.jpg" alt="Community team working together" className="w-full h-auto object-contain mx-auto animate-float" />
+             <img src="/images/hero-community.png" alt="Community team working together" className="w-full h-auto object-contain mx-auto animate-float" />
           </div>
         </div>
       </section>
