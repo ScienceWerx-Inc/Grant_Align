@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { listDonorRows } from '@/lib/store';
 import { requireStaff } from '@/lib/auth';
 import { Card, EmptyState, PageHeader } from '@/components/ui';
 
@@ -15,11 +15,7 @@ export default async function DonorsPage() {
   // business reading other non-profits' profiles, nor a funder its peers'.
   
 
-  const donors = await prisma.organization.findMany({
-    where: { kind: 'DONOR' },
-    include: { donorProfile: true, _count: { select: { donorMatches: true } } },
-    orderBy: [{ isSeed: 'desc' }, { name: 'asc' }],
-  });
+  const donors = await listDonorRows();
 
   return (
     <>
@@ -36,8 +32,7 @@ export default async function DonorsPage() {
       {donors.length === 0 ? (
         <EmptyState
           title="No funders yet"
-          hint="Run `npm run db:seed` to load the local seed list, or add one by hand."
-          cta={
+          hint="Run `npm run db:seed` to load the local seed list, or add one by hand."          cta={
             <Link href="/donors/new" className="btn-primary">
               Add funder
             </Link>
@@ -71,7 +66,7 @@ export default async function DonorsPage() {
                       ? `Researched ${profile.lastResearchedAt.toLocaleDateString('en-US')}`
                       : 'Never researched'}
                   </span>
-                  <span className="text-caption text-ink-muted">{org._count.donorMatches} matches</span>
+                  <span className="text-caption text-ink-muted">{org.matchCount} matches</span>
                 </li>
               );
             })}

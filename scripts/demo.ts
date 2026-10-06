@@ -16,11 +16,11 @@
  * That is a demo-setup shortcut, not the product behaviour: in the UI a person
  * reviews each proposal before it becomes a donor's live criteria.
  *
- * Requires DATABASE_URL and GEMINI_API_KEY. Costs roughly 2 model calls per
- * donor plus one per seeker/donor pair, and takes a few minutes.
+ * Requires Firebase Admin credentials and GEMINI_API_KEY. Costs roughly 2
+ * model calls per donor plus one per seeker/donor pair, and takes a few minutes.
  */
 
-import { prisma } from '@/lib/db';
+import { countOrganizations, getDonorProfile, listDonorsFull } from '@/lib/store';
 import { aiConfigured, AI_KEY_VAR, AI_PROVIDER } from '@/ai/providers';
 import { refreshDonor } from '@/lib/donor-refresh';
 import { acceptResearchRun } from '@/lib/donor-refresh';
@@ -55,7 +55,7 @@ async function main() {
   const requested = Number(process.argv[2]);
   const donorCount = Number.isFinite(requested) && requested > 0 ? requested : DEFAULT_DONOR_COUNT;
 
-  const seekers = await prisma.organization.count({ where: { kind: 'SEEKER' } });
+  const seekers = await countOrganizations('SEEKER');
   if (seekers === 0) {
     console.error('No seekers in the database. Run `npm run db:seed` first.');
     process.exit(1);
@@ -63,11 +63,11 @@ async function main() {
 
   // Donors with a website first: those are the ones the scraper can actually
   // read directly, so they produce the most convincing demo.
-  const donors = await prisma.organization.findMany({
-    where: { kind: 'DONOR' },
-    orderBy: [{ website: { sort: 'asc', nulls: 'last' } }, { name: 'asc' }],
-    take: donorCount,
-  });
+  const allDonors = await listDonorsFull();
+  allDonors.sort((a, b) =>
+    a.website === b.website ? a.name.localeCompare(b.name) : a.website ? -1 : 1,
+  );
+  const donors = allDonors.slice(0, donorCount);
 
   heading(`Researching ${donors.length} donor(s)`);
   let accepted = 0;
@@ -85,7 +85,7 @@ async function main() {
     try {
       await acceptResearchRun(result.runId);
       accepted += 1;
-      const profile = await prisma.donorProfile.findUnique({ where: { orgId: donor.id } });
+      const profile = await getDonorProfile(donor.id);
       console.log(
         `accepted — funds: ${profile?.fundingFocus.slice(0, 3).join(', ') || 'unstated'}` +
           ` | excludes: ${profile?.excludedSectors.length ?? 0} item(s)`,
@@ -146,8 +146,6 @@ async function main() {
   console.log('  3. /seekers/<seeker>     the AI interviewer, live, in the right column');
   console.log('  4. /matches              per-dimension scoring and the blockers');
   console.log('  5. /seekers/<seeker>/one-pager   generate, then print to letterhead');
-
-  await prisma.$disconnect();
 }
 
 void main();

@@ -10,7 +10,7 @@
  * allowed to see, which keeps unrelated CRM notes out of generated documents.
  */
 
-import type { ComplianceItem, Contact, DonorProfile, Organization, SeekerProfile } from '@prisma/client';
+import type { ComplianceItem, Contact, DonorProfile, Organization, SeekerProfile } from '@/lib/types';
 
 export const COMPLIANCE_LABELS: Record<ComplianceItem['type'], string> = {
   FORM_990: 'IRS Form 990',

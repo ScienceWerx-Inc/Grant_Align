@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { BlockerList, DimensionRow, VerdictBadge } from '@/components/ui';
 import { IconChevronDown } from '@/components/icons';
 import { DIMENSIONS } from '@/ai/flows/scoreMatch';
-import type { Match, Organization } from '@prisma/client';
+import type { Match, Organization } from '@/lib/types';
 
 interface Dimension {
   key: string;

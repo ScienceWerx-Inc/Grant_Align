@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { VerdictBadge } from '@/components/ui';
-import type { MatchVerdict } from '@prisma/client';
+import type { MatchVerdict } from '@/lib/types';
 
 interface Outcome {
   seekerName: string;

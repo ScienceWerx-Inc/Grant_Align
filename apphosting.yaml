@@ -1,0 +1,27 @@
+# Firebase App Hosting config for backend `grant-align` (project `grant-align`,
+# region us-east4 — region is set on the backend in the console, not here).
+#
+# Secrets (FIREBASE_PRIVATE_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, CRON_SECRET)
+# must be created in the console: App Hosting > backend grant-align >
+# Settings > Secrets, then referenced below via `secret:` instead of inlining.
+# Public NEXT_PUBLIC_* values are safe to set inline under `env`.
+
+runConfig:
+  # Firestore + Auth are in us-east4 with the backend; keep CPU modest.
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 4
+  concurrency: 80
+
+env:
+  - variable: FIREBASE_PROJECT_ID
+    value: grant-align
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: grant-align
+  # Set the rest in the backend's environment / secrets:
+  #   NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  #   NEXT_PUBLIC_FIREBASE_APP_ID,
+  #   FIREBASE_CLIENT_EMAIL (secret), FIREBASE_PRIVATE_KEY (secret),
+  #   GEMINI_API_KEY or MISTRAL_API_KEY (secret), AI_PROVIDER,
+  #   CRON_SECRET (secret), DONOR_REFRESH_BATCH, DONOR_REFRESH_STALE_DAYS

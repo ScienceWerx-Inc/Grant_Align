@@ -1,16 +1,29 @@
 /**
- * Seeds the prepopulated local donors from requirements §2.3, plus two sample
+ * Seeds the prepopulated donors from requirements §2.3, plus two sample
  * seekers so the matching engine has something to evaluate on a fresh install.
  *
  * Donor criteria are deliberately left thin here — a name, a website, a note on
  * what is publicly known. Filling them in is the scraper's and the donor
  * interviewer's job, and pre-writing plausible criteria would make an empty
  * prototype look researched.
+ *
+ * Target: Firestore in project grant-align (Firebase Admin credentials from
+ * .env). Run with `npm run db:seed`.
  */
 
-import { PrismaClient, type ComplianceType, type OrgKind } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import {
+  countOrganizations,
+  createOrganization,
+  findOrganizationByName,
+  getDonorProfile,
+  listOrganizations,
+  deleteOrganizationCascade,
+  updateOrganization,
+  upsertComplianceItem,
+  upsertDonorProfile,
+  upsertSeekerProfile,
+} from '@/lib/store';
+import type { ComplianceStatus, ComplianceType, OrgKind } from '@/lib/types';
 
 const SEED_DONORS: { name: string; website?: string; city?: string; notes?: string }[] = [
   {
@@ -89,23 +102,20 @@ const SEED_DONORS: { name: string; website?: string; city?: string; notes?: stri
 /** Donors dropped from earlier versions of the seed, removed on re-seed. */
 const RETIRED_DONORS = ['Carroll Creek Rotary Club', 'Frederick Noon Rotary Club'];
 
-async function upsertOrg(kind: OrgKind, name: string, data: Record<string, unknown>) {
-  const existing = await prisma.organization.findFirst({ where: { kind, name } });
+async function upsertOrg(kind: OrgKind, name: string, data: Record<string, string | boolean | null>) {
+  const existing = await findOrganizationByName(kind, name);
   if (existing) {
-    return prisma.organization.update({ where: { id: existing.id }, data });
+    return updateOrganization(existing.id, data);
   }
-  return prisma.organization.create({ data: { kind, name, ...data } as any });
+  return createOrganization({ kind, name, ...data });
 }
 
 async function main() {
   // Remove retired seed donors and everything hanging off them, so re-seeding
   // an existing database converges on the current list rather than accumulating.
-  const retired = await prisma.organization.findMany({
-    where: { kind: 'DONOR', name: { in: RETIRED_DONORS } },
-    select: { id: true, name: true },
-  });
-  for (const org of retired) {
-    await prisma.organization.delete({ where: { id: org.id } });
+  const donors = await listOrganizations('DONOR');
+  for (const org of donors.filter(d => RETIRED_DONORS.includes(d.name))) {
+    await deleteOrganizationCascade(org.id);
     console.log(`Removed retired donor: ${org.name}`);
   }
 
@@ -117,10 +127,9 @@ async function main() {
       notes: donor.notes ?? null,
       isSeed: true,
     });
-    await prisma.donorProfile.upsert({
-      where: { orgId: org.id },
-      create: { orgId: org.id, geographies: ['Frederick County, MD'] },
-      update: {},
+    const profile = await getDonorProfile(org.id);
+    await upsertDonorProfile(org.id, {
+      geographies: profile?.geographies?.length ? profile.geographies : ['Frederick County, MD'],
     });
   }
 
@@ -158,7 +167,7 @@ async function main() {
         FORM_990: { status: 'VERIFIED', periodLabel: 'FY2025' },
         GOOD_STANDING: { status: 'VERIFIED', periodLabel: 'Expires 2027-04-30' },
         IRS_DETERMINATION: { status: 'VERIFIED', periodLabel: '501(c)(3), 2009' },
-      },
+      } as Record<string, { status: ComplianceStatus; periodLabel?: string }>,
     },
     {
       name: 'Carroll Creek Youth Arts',
@@ -183,41 +192,28 @@ async function main() {
         FORM_990: { status: 'VERIFIED', periodLabel: 'FY2025' },
         GOOD_STANDING: { status: 'EXPIRED', periodLabel: 'Lapsed 2026-03-31' },
         IRS_DETERMINATION: { status: 'VERIFIED', periodLabel: '501(c)(3), 2016' },
-      },
+      } as Record<string, { status: ComplianceStatus; periodLabel?: string }>,
     },
   ];
 
   for (const seeker of seekers) {
     const org = await upsertOrg('SEEKER', seeker.name, {
-      ein: seeker.ein ?? null,
+      ein: (seeker as { ein?: string }).ein ?? null,
       city: seeker.city,
       state: 'MD',
       mission: seeker.mission,
     });
-    await prisma.seekerProfile.upsert({
-      where: { orgId: org.id },
-      create: { orgId: org.id, ...seeker.profile },
-      update: seeker.profile,
-    });
-    for (const [type, item] of Object.entries(seeker.compliance) as [ComplianceType, { status: any; periodLabel?: string }][]) {
-      await prisma.complianceItem.upsert({
-        where: { orgId_type: { orgId: org.id, type } },
-        create: { orgId: org.id, type, ...item },
-        update: item,
-      });
+    await upsertSeekerProfile(org.id, seeker.profile);
+    for (const [type, item] of Object.entries(seeker.compliance)) {
+      await upsertComplianceItem(org.id, type as ComplianceType, item);
     }
   }
 
-  const counts = await Promise.all([
-    prisma.organization.count({ where: { kind: 'DONOR' } }),
-    prisma.organization.count({ where: { kind: 'SEEKER' } }),
-  ]);
+  const counts = await Promise.all([countOrganizations('DONOR'), countOrganizations('SEEKER')]);
   console.log(`Seeded: ${counts[0]} donors, ${counts[1]} seekers.`);
 }
 
-main()
-  .catch(err => {
-    console.error(err);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

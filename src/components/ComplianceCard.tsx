@@ -1,7 +1,7 @@
 import { addComplianceItem, updateCompliance } from '@/lib/actions';
 import { Card, StatusPill } from '@/components/ui';
 import { COMPLIANCE_LABELS, REQUIRED_COMPLIANCE } from '@/lib/profile-text';
-import type { ComplianceItem, ComplianceType } from '@prisma/client';
+import type { ComplianceItem, ComplianceType } from '@/lib/types';
 
 const STATUSES = ['MISSING', 'PENDING', 'VERIFIED', 'EXPIRED'] as const;
 

@@ -10,10 +10,12 @@
  *   npm run smoke            # all four flows
  *   npm run smoke interview  # just one (interview | research | match | onepager)
  *
- * Requires DATABASE_URL and GEMINI_API_KEY. Costs a handful of model calls.
+ * Requires Firebase Admin credentials (FIREBASE_PROJECT_ID,
+ * FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY) and GEMINI_API_KEY. Costs a
+ * handful of model calls.
  */
 
-import { prisma } from '@/lib/db';
+import { listDonorsFull, listSeekersFull } from '@/lib/store';
 import { aiConfigured, AI_KEY_VAR, AI_PROVIDER } from '@/ai/providers';
 import { interviewTurn, type InterviewMessage } from '@/ai/flows/interviewer';
 import { researchDonor } from '@/ai/flows/researchDonor';
@@ -40,20 +42,16 @@ async function seekerFixture(): Promise<SeekerRecord> {
   // The seeded Community Kitchen has a full profile including both "does NOT"
   // fields, which is what makes it a meaningful test of scoring and the
   // 1-pager. Any interviewed seeker will do if the seed has been changed.
-  const org = await prisma.organization.findFirst({
-    where: { kind: 'SEEKER', seekerProfile: { interviewComplete: true } },
-    include: SEEKER_INCLUDE,
-  });
+  const seekers = (await listSeekersFull()) as SeekerRecord[];
+  const org = seekers.find(s => s.seekerProfile?.interviewComplete) ?? seekers[0];
   if (!org) throw new Error('No interviewed seeker found. Run `npm run db:seed` first.');
-  return org as SeekerRecord;
+  return org;
 }
 
 async function testInterview() {
   heading('1. AI interviewer (seeker)');
-  const org = await prisma.organization.findFirst({
-    where: { kind: 'SEEKER' },
-    include: SEEKER_INCLUDE,
-  });
+  const seekers = (await listSeekersFull()) as SeekerRecord[];
+  const org = seekers[0];
   if (!org) throw new Error('No seeker found. Run `npm run db:seed` first.');
 
   const messages: InterviewMessage[] = [];
@@ -66,12 +64,12 @@ async function testInterview() {
     extracted: {},
   });
   console.log(`Q1: ${opening.reply}`);
-  messages.push({ role: 'assistant', content: opening.reply });
+  messages.push({ role: 'assistant', content: opening.reply, at: new Date().toISOString() });
 
   // A deliberately vague answer: a working interviewer pushes back on this
   // rather than accepting it and moving to the next agenda item.
   const vague = 'We serve the community and try to help wherever we can.';
-  messages.push({ role: 'user', content: vague });
+  messages.push({ role: 'user', content: vague, at: new Date().toISOString() });
   console.log(`A1 (deliberately vague): ${vague}`);
 
   const followUp = await interviewTurn({
@@ -91,9 +89,8 @@ async function testInterview() {
 
 async function testResearch() {
   heading('2. Donor research (live fetch + grounded search)');
-  const org = await prisma.organization.findFirst({
-    where: { kind: 'DONOR', website: { not: null } },
-  });
+  const donors = await listDonorsFull();
+  const org = donors.find(d => d.website);
   if (!org) throw new Error('No donor with a website found. Run `npm run db:seed` first.');
 
   console.log(`Researching ${org.name} (${org.website})…`);
@@ -117,11 +114,13 @@ async function testResearch() {
 async function testMatch() {
   heading('3. Matching engine');
   const seeker = await seekerFixture();
-  const donor = (await prisma.organization.findFirst({
-    where: { kind: 'DONOR' },
-    include: { donorProfile: true, contacts: true },
-    orderBy: { donorProfile: { lastResearchedAt: 'desc' } },
-  })) as DonorRecord | null;
+  const donors = (await listDonorsFull()) as DonorRecord[];
+  donors.sort(
+    (a, b) =>
+      (b.donorProfile?.lastResearchedAt?.getTime() ?? 0) -
+      (a.donorProfile?.lastResearchedAt?.getTime() ?? 0),
+  );
+  const donor = donors[0];
   if (!donor) throw new Error('No donor found. Run `npm run db:seed` first.');
 
   console.log(`${seeker.name} → ${donor.name}`);
@@ -201,7 +200,6 @@ async function main() {
   }
 
   heading(failures.length === 0 ? `All ${names.length} flow(s) passed` : `${failures.length} of ${names.length} failed: ${failures.join(', ')}`);
-  await prisma.$disconnect();
   process.exit(failures.length === 0 ? 0 : 1);
 }
 

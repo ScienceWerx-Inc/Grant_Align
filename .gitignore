@@ -7,3 +7,10 @@ node_modules
 next-env.d.ts
 .devdb
 output.css
+
+# Firebase
+.firebase
+firebase-debug.log
+firestore-debug.log
+*-service-account.json
+service-account.json

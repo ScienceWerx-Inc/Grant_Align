@@ -1,57 +1,29 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { SESSION_COOKIE_NAME } from '@/lib/session';
 
 /**
- * Refreshes the Supabase session on every request and gates the app routes.
+ * Gates the app routes on the Firebase session cookie.
  *
- * Two jobs, and the ordering matters. Server components cannot write cookies,
- * so without this the access token would expire and never refresh, silently
- * signing people out mid-session. The redirect for signed-out visitors is a
- * convenience on top of that, NOT the security boundary: middleware only sees
- * the token, so it cannot know a user's role or organization. Every page and
- * route handler still has to authorize for itself via src/lib/auth.ts.
+ * This runs on the edge, where the Admin SDK cannot verify the cookie's
+ * signature — so it only checks presence, NOT validity. A missing cookie
+ * redirects to login; a present-but-invalid one is treated as signed out by
+ * `getSessionUser()` in src/lib/auth.ts, which every page and route handler
+ * still has to call. The redirect here is a convenience, NOT the security
+ * boundary: middleware cannot know a user's role or organization.
  */
 
 /** Paths reachable without signing in. */
-const PUBLIC_PATHS = ['/', '/login', '/contact', '/auth', '/no-access'];
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/contact', '/auth', '/no-access'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`));
 }
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          for (const { name, value } of cookiesToSet) {
-            request.cookies.set(name, value);
-          }
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
-        },
-      },
-    },
-  );
-
-  // getUser rather than getSession: this call is what actually refreshes the
-  // token, and it validates it with Supabase instead of trusting the cookie.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+export function middleware(request: NextRequest) {
+  const session = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const { pathname } = request.nextUrl;
 
-  if (!user && !isPublic(pathname)) {
+  if (!session && !isPublic(pathname)) {
     const login = request.nextUrl.clone();
     login.pathname = '/login';
     // Send them back where they were headed once they are in.
@@ -59,14 +31,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  if (user && pathname === '/login') {
+  if (session && pathname === '/login') {
     const home = request.nextUrl.clone();
     home.pathname = '/handoff';
     home.search = '';
     return NextResponse.redirect(home);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

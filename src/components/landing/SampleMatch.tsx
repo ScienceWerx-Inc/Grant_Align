@@ -1,5 +1,5 @@
 import { DIMENSIONS } from '@/ai/flows/scoreMatch';
-import type { Match, Organization } from '@prisma/client';
+import type { Match, Organization } from '@/lib/types';
 
 interface Dimension {
   key: string;

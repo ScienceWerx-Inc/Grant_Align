@@ -9,7 +9,8 @@
  */
 
 import { revalidatePath } from 'next/cache';
-import { prisma } from '@/lib/db';
+import { requireStaff } from '@/lib/auth';
+import { createContactMessage, markContactMessageHandled } from '@/lib/store';
 
 export interface ContactState {
   error?: string;
@@ -41,9 +42,7 @@ export async function submitContact(_prev: unknown, form: FormData): Promise<Con
   if (message.length > 4000) return { error: 'That message is too long. Please keep it under 4000 characters.' };
 
   try {
-    await prisma.contactMessage.create({
-      data: { name, email, organization: organization || null, message },
-    });
+    await createContactMessage({ name, email, organization: organization || null, message });
   } catch {
     // Never surface the database error itself: it can carry connection details.
     return { error: 'We could not save that just now. Please try again in a moment.' };
@@ -55,9 +54,7 @@ export async function submitContact(_prev: unknown, form: FormData): Promise<Con
 
 /** Marks an enquiry dealt with. Staff only - the page itself enforces that. */
 export async function markContactHandled(id: string) {
-  await prisma.contactMessage.update({
-    where: { id },
-    data: { handledAt: new Date() },
-  });
+  await requireStaff();
+  await markContactMessageHandled(id);
   revalidatePath('/staff/messages');
 }

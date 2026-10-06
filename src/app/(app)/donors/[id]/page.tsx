@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import { getDonorDetail } from '@/lib/store';
 import { requireOrgAccess } from '@/lib/auth';
 import { Card, Field, NegativeScopePanel, PageHeader } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
@@ -25,20 +25,11 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
   // most likely route for one organization's data to reach another.
   
 
-  const org = await prisma.organization.findUnique({
-    where: { id },
-    include: {
-      donorProfile: true,
-      contacts: { orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }] },
-      researchRuns: { orderBy: { startedAt: 'desc' }, take: 5 },
-      donorMatches: { include: { seeker: true }, orderBy: { score: 'desc' } },
-      interviews: { where: { role: 'DONOR' }, orderBy: { updatedAt: 'desc' }, take: 1 },
-    },
-  });
-  if (!org || org.kind !== 'DONOR') notFound();
+  const org = await getDonorDetail(id);
+  if (!org) notFound();
 
   const profile = org.donorProfile;
-  const session = org.interviews[0];
+  const session = org.latestInterview;
   const messages = ((session?.messages as unknown as InterviewMessage[]) ?? []).map(m => ({
     role: m.role,
     content: m.content,
@@ -163,12 +154,12 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
 
           <ResearchRuns runs={org.researchRuns} />
 
-          <Card title={`Matching non-profits (${org.donorMatches.length})`}>
-            {org.donorMatches.length === 0 ? (
+          <Card title={`Matching non-profits (${org.matches.length})`}>
+            {org.matches.length === 0 ? (
               <p className="field-empty">No non-profits evaluated against this funder yet.</p>
             ) : (
               <div className="space-y-2">
-                {org.donorMatches.map(match => (
+                {org.matches.map(match => (
                   <MatchCard
                     key={match.id}
                     match={match}

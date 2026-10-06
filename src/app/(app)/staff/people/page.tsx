@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db';
+import { listOrgOptions, listUsers } from '@/lib/store';
 import { Card, PageHeader } from '@/components/ui';
 import { requireStaff } from '@/lib/auth';
 import { updateMembership } from '@/lib/auth-actions';
@@ -18,10 +18,7 @@ const ROLES = ['SEEKER', 'DONOR', 'STAFF'] as const;
 export default async function PeoplePage() {
   await requireStaff();
 
-  const [users, organizations] = await Promise.all([
-    prisma.appUser.findMany({ include: { org: true }, orderBy: [{ role: 'asc' }, { email: 'asc' }] }),
-    prisma.organization.findMany({ select: { id: true, name: true, kind: true }, orderBy: { name: 'asc' } }),
-  ]);
+  const [users, organizations] = await Promise.all([listUsers(), listOrgOptions()]);
 
   return (
     <>
