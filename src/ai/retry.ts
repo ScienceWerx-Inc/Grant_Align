@@ -43,6 +43,11 @@ export async function withRetry<T>(label: string, fn: () => Promise<T>): Promise
       lastError = err;
       const code = status(err);
 
+      if (code === 429 && /PerDay/.test(String(err?.message ?? err))) {
+        // A daily quota does not refill in the next minute; waiting just
+        // holds the request open. Fail now with the provider's message.
+        throw err;
+      }
       if (code === 429 && quotaIsZero(err)) {
         throw new Error(
           `${label}: this API key's project has a generation quota of zero, so no request will ever succeed. ` +

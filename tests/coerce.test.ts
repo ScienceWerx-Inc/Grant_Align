@@ -80,3 +80,11 @@ test('REGRESSION: an env var set to an empty string falls back to its default', 
   assert.equal(positiveInt('abc', 3), 3);
   assert.equal(positiveInt('5', 3), 5);
 });
+
+test('toCount reads spelled-out millions and thousands', () => {
+  assert.equal(toCount('$1.2 million'), 1_200_000);
+  assert.equal(toCount('about 1.2M'), 1_200_000);
+  assert.equal(toCount('50 thousand'), 50_000);
+  assert.equal(toCount('300 volunteers'), 300);
+  assert.equal(toCount('founded in 1984'), 1984);
+});

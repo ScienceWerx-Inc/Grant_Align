@@ -109,9 +109,10 @@ export function toCount(value: unknown): number | undefined {
 
   // Unanchored: models write "about 50k" and "up to 1.5m" as often as "50000",
   // and an anchored match reads the first of those as 50.
-  const millions = /(\d+(?:\.\d+)?)m\b/.exec(text);
+  // Spelled-out units too: "1.2 million" otherwise reads as 1.
+  const millions = /(\d+(?:\.\d+)?)(?:m|mm|mil|million)\b/.exec(text);
   if (millions) return Math.round(Number(millions[1]) * 1_000_000);
-  const thousands = /(\d+(?:\.\d+)?)k\b/.exec(text);
+  const thousands = /(\d+(?:\.\d+)?)(?:k|thousand)\b/.exec(text);
   if (thousands) return Math.round(Number(thousands[1]) * 1000);
 
   const digits = /-?\d+(\.\d+)?/.exec(text);

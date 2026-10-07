@@ -37,6 +37,13 @@ const SEEKER_FIELDS: FieldSpecs = {
   serviceAreas: { kind: 'tags', description: 'Geographies served, e.g. "Frederick County, MD", "City of Frederick".' },
   programAreas: { kind: 'tags', description: 'Program/sector areas, e.g. "food security", "workforce development".' },
   outcomes: { kind: 'prose', description: 'Outcomes or numbers the organization can evidence.' },
+  // Agenda topic 6 (scale). Without these the interviewer asked for budget and
+  // staff, wrote them into its summary, and had no field to save them in - so
+  // the 1-pager listed them as gaps the organization had already answered.
+  yearFounded: { kind: 'count', description: 'Year the organization was founded, e.g. 1984.' },
+  annualBudget: { kind: 'count', description: 'Annual operating budget in US dollars, written out in full (1.2 million is 1200000).' },
+  staffCount: { kind: 'count', description: 'Number of paid staff.' },
+  volunteerCount: { kind: 'count', description: 'Number of regular volunteers.' },
 };
 
 const DONOR_FIELDS: FieldSpecs = {

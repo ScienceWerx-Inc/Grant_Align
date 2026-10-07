@@ -37,9 +37,8 @@ const PROVIDER_DEFAULTS: Record<AiProvider, { fast: string; writing: string }> =
   // Flash for both by default: Pro frequently has no free-tier quota at all,
   // so defaulting to it makes scoring and the 1-pager the first things to break
   // on a free key. Point GENAI_WRITING_MODEL at Pro on a billed key.
-  // 2.5 Flash is closed to new API keys ("no longer available to new users"),
-  // so a freshly created free-tier key gets a 404 on it.
-  gemini: { fast: 'googleai/gemini-3.5-flash', writing: 'googleai/gemini-3.5-flash' },
+  // Gemini goes through the fallback chain defined below, not one model.
+  gemini: { fast: 'grantalign/text', writing: 'grantalign/text' },
   // Small handles the interview and extraction; the heavier scoring and
   // 1-pager prompts benefit from Medium, which is still on the free tier.
   mistral: { fast: 'mistral/mistral-small-latest', writing: 'mistral/mistral-medium-latest' },
@@ -85,3 +84,59 @@ export const AI_KEY_VAR = AI_PROVIDER === 'mistral' ? 'MISTRAL_API_KEY' : 'GEMIN
  * with citations, so donor research works on either provider.
  */
 export const supportsWebSearch = AI_PROVIDER === 'gemini' || AI_PROVIDER === 'mistral';
+
+// ── grantalign/text: one model over a chain of real Gemini models ────────────
+//
+// The free tier allows about 20 requests per model per day, and Google retires
+// models from under new keys (2.5 Flash now answers a 404). Each model has its
+// own daily quota, so instead of failing when one runs out, the request moves
+// to the next model in the chain. Tools (Google Search), output schemas and
+// config pass straight through, so the flows cannot tell the difference.
+//
+//   GENAI_TEXT_MODELS  comma-separated chain, in order (default below).
+//
+// A 503 ("high demand") gets one retry on the same model; a retired model, an
+// exhausted quota or a model that stays busy moves on to the next.
+
+export const TEXT_MODEL_CHAIN = (env('GENAI_TEXT_MODELS') || 'gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.8-flash,gemini-flash-latest')
+  .split(',')
+  .map(m => m.trim().replace(/^googleai\//, ''))
+  .filter(Boolean);
+
+const MOVE_ON = new Set(['NOT_FOUND', 'RESOURCE_EXHAUSTED', 'PERMISSION_DENIED', 'UNIMPLEMENTED']);
+const RETRY_SAME = new Set(['UNAVAILABLE', 'DEADLINE_EXCEEDED', 'INTERNAL', 'ABORTED']);
+const statusOf = (err: unknown) => String((err as { status?: string })?.status ?? '');
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+if (AI_PROVIDER === 'gemini') {
+  ai.defineModel(
+    {
+      name: 'grantalign/text',
+      label: 'Gemini with fallback',
+      supports: { multiturn: true, tools: true, media: true, systemRole: true, constrained: 'all', output: ['text', 'json'] },
+    },
+    async request => {
+      let lastError: unknown;
+      for (const name of TEXT_MODEL_CHAIN) {
+        const model = await ai.registry.lookupAction(`/model/googleai/${name}`);
+        if (!model) continue;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            return (await model(request)) as never;
+          } catch (err) {
+            lastError = err;
+            const status = statusOf(err);
+            if (MOVE_ON.has(status) || !RETRY_SAME.has(status)) break;
+            await pause(500 + Math.random() * 500);
+          }
+        }
+        const status = statusOf(lastError);
+        // Anything other than "this model can't serve you" is a real error
+        // (bad prompt, schema mismatch): surface it rather than try the rest.
+        if (!MOVE_ON.has(status) && !RETRY_SAME.has(status)) throw lastError;
+        console.warn(`[ai] ${name} unavailable (${status}), trying the next model`);
+      }
+      throw lastError ?? new Error('No Gemini model is configured (GENAI_TEXT_MODELS).');
+    },
+  );
+}
