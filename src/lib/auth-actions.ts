@@ -6,7 +6,16 @@ import { cookies } from 'next/headers';
 import { adminAuth, createSessionCookie } from '@/lib/firebase-admin';
 import { SESSION_COOKIE_NAME } from '@/lib/session';
 import { webApiKey } from '@/lib/firebase';
-import { getOrganization, updateAppUser, upsertAppUser } from '@/lib/store';
+import {
+  createContact,
+  createOrganization,
+  getAppUser,
+  getOrganization,
+  listOrganizations,
+  setOrganizationVerified,
+  updateAppUser,
+} from '@/lib/store';
+import { canSelfOnboard } from '@/lib/auth-rules';
 import { getSessionUser, homePathFor, requireStaff, requireUser } from '@/lib/auth';
 import type { UserRole } from '@/lib/types';
 
@@ -26,7 +35,6 @@ function field(form: FormData, key: string): string {
  */
 
 const SIGN_IN_URL = 'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword';
-const SIGN_UP_URL = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp';
 
 async function toolkit(url: string, body: Record<string, unknown>) {
   const res = await fetch(`${url}?key=${webApiKey()}`, {
@@ -85,34 +93,28 @@ export async function signIn(_prev: unknown, form: FormData): Promise<{ error: s
 }
 
 /**
- * Creates an account.
+ * Finishes sign-up once the browser has created the Firebase account.
  *
- * The role is taken from the form, which is safe only because SEEKER and DONOR
- * both grant access to nothing until staff link the account to an organization.
- * STAFF is deliberately absent from the options a form can submit - it is
- * granted by an existing staff member or by a direct Firestore update, so that
- * self-registration can never mint an administrator.
+ * The account itself is created client-side (src/components/SignUpForm.tsx) so
+ * the browser holds a signed-in Firebase user and can send - and later resend -
+ * the verification email; the server cannot do that without minting tokens.
+ * By the time this runs the `__session` cookie is set, so this only records
+ * the name and the chosen side.
+ *
+ * The role is taken from the form, which is safe because SEEKER and DONOR
+ * grant access to nothing until the account has an organization, and an
+ * account-created organization stays out of matching until staff verify it.
+ * STAFF can never be chosen here.
  */
-export async function signUp(_prev: unknown, form: FormData): Promise<{ error: string } | void> {
-  const email = field(form, 'email');
-  const password = field(form, 'password');
-  const name = field(form, 'name');
-  const requested = field(form, 'role');
-  const role: UserRole = requested === 'DONOR' ? 'DONOR' : 'SEEKER';
-
-  if (!email || !password) return { error: 'Email and password are both required.' };
-  if (password.length < 8) return { error: 'Use a password of at least 8 characters.' };
-
-  try {
-    const { idToken, localId } = await toolkit(SIGN_UP_URL, { email, password });
-    await adminAuth().updateUser(localId, { displayName: name || undefined });
-    await upsertAppUser({ id: localId, email, name: name || null, role });
-    await setSessionCookie(idToken);
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : 'The account could not be created.' };
-  }
-
-  redirect('/onboarding');
+export async function completeSignUp(input: { name: string; role: string }): Promise<void> {
+  const user = await requireUser();
+  // Only for a fresh account: this must not let anyone re-pick a role later.
+  if (!canSelfOnboard(user)) return;
+  const name = input.name.trim().slice(0, 120);
+  await updateAppUser(user.id, {
+    name: name || null,
+    role: input.role === 'DONOR' ? 'DONOR' : 'SEEKER',
+  });
 }
 
 export async function signOut() {
@@ -135,30 +137,134 @@ export async function signOut() {
   redirect('/login');
 }
 
-/**
- * Claims membership of an organization during onboarding.
- *
- * This is a request, not a grant: it records which organization the person says
- * they belong to and gives them access to it. For a real deployment this needs
- * staff approval or domain verification - anyone could otherwise claim to work
- * at a foundation and read its private giving notes. Called out in the UI so
- * the gap is visible rather than assumed handled.
- */
-export async function claimOrganization(form: FormData) {
+// ---------------------------------------------------------------------------
+// Onboarding: an account with no organization sets one up, or asks to join one
+// ---------------------------------------------------------------------------
+
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function optionalUrl(value: string): string | null {
+  if (!value) return null;
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+/** Switches between seeker and funder before an organization exists. */
+export async function setOnboardingRole(form: FormData) {
   const user = await requireUser();
-  const orgId = field(form, 'orgId');
-  if (!orgId) return;
+  if (!canSelfOnboard(user)) redirect(homePathFor(user));
+  await updateAppUser(user.id, {
+    role: field(form, 'role') === 'DONOR' ? 'DONOR' : 'SEEKER',
+    // A pending request was for an organization of the other kind.
+    requestedOrgId: null,
+  });
+  revalidatePath('/onboarding');
+}
 
-  const org = await getOrganization(orgId);
-  if (!org) return;
+/**
+ * Creates the signed-in user's own organization and makes them its member.
+ *
+ * Creating a NEW organization exposes nobody else's data, which is why this can
+ * be self-service when claiming an existing one cannot. It starts unverified:
+ * the owner can fill in the profile and run the interview straight away, but it
+ * is not paired with anyone until staff review it.
+ */
+export async function createOwnOrganization(_prev: unknown, form: FormData): Promise<{ error: string } | void> {
+  const user = await requireUser();
+  if (!canSelfOnboard(user)) redirect(homePathFor(user));
 
-  // A seeker cannot claim a funder, or vice versa.
-  const expected = user.role === 'DONOR' ? 'DONOR' : 'SEEKER';
-  if (org.kind !== expected) return;
+  const kind = user.role === 'DONOR' ? 'DONOR' : 'SEEKER';
+  const name = field(form, 'name').slice(0, 160);
+  if (!name) return { error: 'Enter your organization\'s name.' };
 
-  await updateAppUser(user.id, { orgId });
+  // Someone else registering a real organization's name first would squat it,
+  // so an existing match is sent to the join flow instead.
+  const existing = (await listOrganizations(kind)).find(o => normalizeName(o.name) === normalizeName(name));
+  if (existing) {
+    return { error: `${existing.name} is already on Grant Align. Use "Join an existing organization" below to ask for access.` };
+  }
+
+  const org = await createOrganization({
+    kind,
+    name,
+    ein: field(form, 'ein') || null,
+    website: optionalUrl(field(form, 'website')),
+    mission: field(form, 'mission') || null,
+    city: field(form, 'city') || null,
+    state: field(form, 'state') || null,
+    verified: false,
+    createdBy: user.id,
+  });
+  await createContact({
+    orgId: org.id,
+    name: user.name || user.email,
+    title: field(form, 'title') || null,
+    email: user.email,
+    phone: null,
+    isPrimary: true,
+  });
+  await updateAppUser(user.id, { orgId: org.id, requestedOrgId: null });
+
   revalidatePath('/', 'layout');
-  redirect(user.role === 'SEEKER' ? `/seekers/${orgId}` : `/donors/${orgId}`);
+  redirect(kind === 'SEEKER' ? `/seekers/${org.id}` : `/donors/${org.id}`);
+}
+
+/**
+ * Asks to join an organization that already exists.
+ *
+ * A request, never a grant: joining an existing organization means reading its
+ * financials and match history, so staff approve it on the People page.
+ */
+export async function requestToJoin(form: FormData) {
+  const user = await requireUser();
+  if (!canSelfOnboard(user)) redirect(homePathFor(user));
+
+  const org = await getOrganization(field(form, 'orgId'));
+  // A seeker cannot ask to join a funder, or vice versa.
+  if (!org || org.kind !== (user.role === 'DONOR' ? 'DONOR' : 'SEEKER')) return;
+
+  await updateAppUser(user.id, { requestedOrgId: org.id });
+  revalidatePath('/onboarding');
+}
+
+export async function cancelJoinRequest() {
+  const user = await requireUser();
+  await updateAppUser(user.id, { requestedOrgId: null });
+  revalidatePath('/onboarding');
+}
+
+// ---------------------------------------------------------------------------
+// Staff review
+// ---------------------------------------------------------------------------
+
+export async function approveJoinRequest(userId: string) {
+  await requireStaff();
+  const target = await getAppUser(userId);
+  if (!target?.requestedOrgId) return;
+  const org = await getOrganization(target.requestedOrgId);
+  if (!org) return;
+  await updateAppUser(userId, {
+    orgId: org.id,
+    role: org.kind,
+    requestedOrgId: null,
+  });
+  revalidatePath('/staff/people');
+}
+
+export async function declineJoinRequest(userId: string) {
+  await requireStaff();
+  await updateAppUser(userId, { requestedOrgId: null });
+  revalidatePath('/staff/people');
+}
+
+/** Lets a self-registered organization into matching. */
+export async function verifyOrganization(orgId: string) {
+  await requireStaff();
+  await setOrganizationVerified(orgId, true);
+  revalidatePath('/staff/people');
+  revalidatePath(`/seekers/${orgId}`);
+  revalidatePath(`/donors/${orgId}`);
 }
 
 /** Staff-only: change someone's role or organization. */

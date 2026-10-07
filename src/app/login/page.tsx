@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { LoginForm } from '@/components/LoginForm';
 import { AuthShell } from '@/components/AuthShell';
 
@@ -21,7 +22,14 @@ export default async function LoginPage({
       eyebrow="Account"
       title="Sign in"
       intro="Grant seekers, funders and platform staff each see a different view of the same data."
-      footer="Accounts are created by a platform administrator. Self-service would let anyone claim to work at a foundation."
+      footer={
+        <>
+          New to Grant Align?{' '}
+          <Link href="/signup" className="btn-link">
+            Create an account
+          </Link>
+        </>
+      }
     >
       <LoginForm next={next} />
     </AuthShell>

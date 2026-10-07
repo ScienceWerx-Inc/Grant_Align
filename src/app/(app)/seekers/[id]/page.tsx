@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getSeekerDetail } from '@/lib/store';
 import { requireOrgAccess } from '@/lib/auth';
-import { Card, Field, NegativeScopePanel, PageHeader, Tags } from '@/components/ui';
+import { Alert, Card, Field, NegativeScopePanel, PageHeader, Tags } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
 import { MatchRunner } from '@/components/MatchRunner';
 import { OrgContacts } from '@/components/OrgContacts';
@@ -45,10 +45,20 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
             <Link href={`/seekers/${org.id}/one-pager`} className="btn-secondary">
               1-pager
             </Link>
-            <MatchRunner seekerId={org.id} label="Run matching" />
+            {org.verified && <MatchRunner seekerId={org.id} label="Run matching" />}
           </>
         }
       />
+
+      {!org.verified && (
+        <div className="mb-6">
+          <Alert tone="info" title="Under review">
+            The Grant Align team is reviewing this organization. Matching opens once it&apos;s verified,
+            usually within a business day. Meanwhile, complete the profile below; it&apos;s what matching
+            uses.
+          </Alert>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr,26rem]">
         <div className="space-y-6">

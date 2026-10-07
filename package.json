@@ -12,7 +12,8 @@
     "genkit:dev": "genkit start -- tsx --watch src/ai/dev.ts",
     "smoke": "tsx --env-file-if-exists=.env scripts/smoke.ts",
     "demo": "tsx --env-file-if-exists=.env scripts/demo.ts",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "make-staff": "tsx --env-file-if-exists=.env scripts/make-staff.ts"
   },
   "dependencies": {
     "@genkit-ai/compat-oai": "^1.42.0",

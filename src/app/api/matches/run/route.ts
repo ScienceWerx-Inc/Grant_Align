@@ -2,6 +2,8 @@ import { revalidatePath } from 'next/cache';
 import { runMatches } from '@/lib/matching';
 import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
 import { canAccessOrg, getSessionUser } from '@/lib/auth';
+import { isMatchable } from '@/lib/auth-rules';
+import { getOrganization } from '@/lib/store';
 
 export const maxDuration = 300;
 
@@ -40,6 +42,14 @@ export async function POST(request: Request) {
     }
   } else if (!canAccessOrg(user, scope)) {
     return Response.json({ error: 'Not authorized for that organization.' }, { status: 403 });
+  } else {
+    const org = await getOrganization(scope);
+    if (org && !isMatchable(org)) {
+      return Response.json(
+        { error: 'Matching opens once the Grant Align team has reviewed this organization.' },
+        { status: 409 },
+      );
+    }
   }
 
   const encoder = new TextEncoder();

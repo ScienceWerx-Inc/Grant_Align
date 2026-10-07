@@ -48,3 +48,28 @@ export function homePathFor(user: Principal): string {
 export function canRunFullMatching(user: Principal): boolean {
   return user.role === 'STAFF';
 }
+
+/**
+ * Whether an organization may take part in matching.
+ *
+ * Self-service sign-up means anyone can create a "funder", and a funder's
+ * matches name the non-profits it was paired with and how they scored. So an
+ * organization joins the pool only once staff have verified it - in both
+ * directions, so an unverified seeker never lands in a real funder's list
+ * either.
+ */
+export function isMatchable(org: { verified: boolean }): boolean {
+  return org.verified;
+}
+
+/**
+ * Whether a signed-in user may set up an organization through onboarding.
+ *
+ * Only an account with no organization yet, and never staff - staff create
+ * organizations from the CRM, where they are verified from the start. One
+ * organization per account is what keeps self-service from being a way to
+ * mint funders in bulk.
+ */
+export function canSelfOnboard(user: Principal): boolean {
+  return user.role !== 'STAFF' && !user.orgId;
+}

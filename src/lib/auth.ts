@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { SESSION_COOKIE_NAME } from '@/lib/session';
 import { verifySessionCookie } from '@/lib/firebase-admin';
 import { adminAuth } from '@/lib/firebase-admin';
-import { createAppUser, getAppUser } from '@/lib/store';
+import { createAppUser, getAppUser, updateAppUser } from '@/lib/store';
 import { canAccessOrg as canAccessOrgRule, homePathFor as homePathForRule, orgScope as orgScopeRule } from '@/lib/auth-rules';
 import type { AppUser, Organization, OrgKind } from '@/lib/types';
 
@@ -47,7 +47,22 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   }
 
   const appUser = await getAppUser(uid);
-  if (appUser) return appUser;
+  if (appUser) {
+    // The verification link is clicked on Firebase's page, not ours, so the
+    // stored flag is refreshed from Auth until it turns true. Only unverified
+    // accounts pay for the extra lookup.
+    if (!appUser.emailVerified) {
+      try {
+        if ((await adminAuth().getUser(uid)).emailVerified) {
+          await updateAppUser(uid, { emailVerified: true });
+          return { ...appUser, emailVerified: true };
+        }
+      } catch {
+        // Auth lookup failed: keep the stored value rather than block the page.
+      }
+    }
+    return appUser;
+  }
 
   // Signed in with Firebase but no profile row yet: the account exists and the
   // onboarding step has not run. Created here so a half-finished sign-up cannot

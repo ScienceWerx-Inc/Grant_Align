@@ -9,6 +9,7 @@
  */
 
 import { listDonorsFull, listSeekersFull, upsertMatch } from '@/lib/store';
+import { isMatchable } from '@/lib/auth-rules';
 import { renderDonorProfile, renderSeekerProfile, type DonorRecord, type SeekerRecord } from '@/lib/profile-text';
 import { reconcileVerdict, scoreMatch, weightedScore } from '@/ai/flows/scoreMatch';
 import type { MatchVerdict } from '@/lib/types';
@@ -126,8 +127,10 @@ export async function runMatches(
    */
   onProgress?: (progress: RunProgress) => void | Promise<void>,
 ): Promise<PairOutcome[]> {
-  const allSeekers = (await listSeekersFull()) as SeekerRecord[];
-  const allDonors = (await listDonorsFull()) as DonorRecord[];
+  // Unverified organizations (self-registered, awaiting staff review) are never
+  // paired, whichever side asked for the run.
+  const allSeekers = ((await listSeekersFull()) as SeekerRecord[]).filter(isMatchable);
+  const allDonors = ((await listDonorsFull()) as DonorRecord[]).filter(isMatchable);
   const seekers = opts.seekerId ? allSeekers.filter(s => s.id === opts.seekerId) : allSeekers;
   const donors = opts.donorId ? allDonors.filter(d => d.id === opts.donorId) : allDonors;
 

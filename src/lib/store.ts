@@ -75,6 +75,8 @@ function decodeOrg(id: string, d: Record<string, unknown>): Organization {
     phone: (d.phone as string | null) ?? null,
     notes: (d.notes as string | null) ?? null,
     isSeed: Boolean(d.isSeed ?? false),
+    verified: d.verified === undefined ? true : Boolean(d.verified),
+    createdBy: (d.createdBy as string | null) ?? null,
     createdAt: reqDate(d.createdAt, new Date(0)),
     updatedAt: reqDate(d.updatedAt, new Date(0)),
   };
@@ -87,6 +89,8 @@ function decodeUser(id: string, d: Record<string, unknown>): AppUser {
     name: (d.name as string | null) ?? null,
     role: (d.role as UserRole) ?? 'SEEKER',
     orgId: (d.orgId as string | null) ?? null,
+    emailVerified: Boolean(d.emailVerified ?? false),
+    requestedOrgId: (d.requestedOrgId as string | null) ?? null,
     createdAt: reqDate(d.createdAt, new Date(0)),
     updatedAt: reqDate(d.updatedAt, new Date(0)),
   };
@@ -298,6 +302,8 @@ export async function createOrganization(data: {
   postalCode?: string | null;
   phone?: string | null;
   notes?: string | null;
+  verified?: boolean;
+  createdBy?: string | null;
 }): Promise<Organization> {
   const ref = db_().collection('organizations').doc();
   const payload = clean({
@@ -313,6 +319,8 @@ export async function createOrganization(data: {
     phone: data.phone ?? null,
     notes: data.notes ?? null,
     isSeed: false,
+    verified: data.verified ?? true,
+    createdBy: data.createdBy ?? null,
     createdAt: now(),
     updatedAt: now(),
   });
@@ -492,12 +500,28 @@ export async function upsertAppUser(data: {
 
 export async function updateAppUser(
   uid: string,
-  data: { role?: UserRole; orgId?: string | null },
+  data: {
+    role?: UserRole;
+    orgId?: string | null;
+    name?: string | null;
+    emailVerified?: boolean;
+    requestedOrgId?: string | null;
+  },
 ): Promise<void> {
   await db_()
     .collection('users')
     .doc(uid)
     .update(clean({ ...data, updatedAt: now() }));
+}
+
+/** Organizations created through onboarding that staff have not reviewed. */
+export async function listUnverifiedOrganizations(): Promise<Organization[]> {
+  const rows = await listWhere('organizations', 'verified', false, decodeOrg);
+  return rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export async function setOrganizationVerified(id: string, verified: boolean): Promise<void> {
+  await db_().collection('organizations').doc(id).update({ verified, updatedAt: now() });
 }
 
 export async function listUsers(): Promise<(AppUser & { org: Organization | null })[]> {

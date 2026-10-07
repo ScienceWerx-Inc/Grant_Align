@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { firebaseAuth } from '@/lib/firebase';
@@ -34,7 +35,7 @@ export function LoginForm({ next }: { next?: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
-      if (!res.ok) throw new Error('Could not create a session. Try again.');
+      if (!res.ok || res.redirected) throw new Error('Could not create a session. Try again.');
     } catch (err) {
       setError(friendlyMessage(err));
       setBusy(false);
@@ -70,6 +71,11 @@ export function LoginForm({ next }: { next?: string }) {
           onChange={e => setPassword(e.target.value)}
           className="input"
         />
+        <p className="mt-2 text-right text-caption">
+          <Link href="/forgot-password" className="btn-link">
+            Forgot password?
+          </Link>
+        </p>
       </FieldShell>
 
       {error && <Alert tone="danger">{error}</Alert>}

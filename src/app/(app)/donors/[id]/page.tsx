@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getDonorDetail } from '@/lib/store';
 import { requireOrgAccess } from '@/lib/auth';
-import { Card, Field, NegativeScopePanel, PageHeader } from '@/components/ui';
+import { Alert, Card, Field, NegativeScopePanel, PageHeader } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
 import { ActionButton } from '@/components/ActionButton';
 import { MatchRunner } from '@/components/MatchRunner';
@@ -50,10 +50,20 @@ export default async function DonorPage({ params }: { params: Promise<{ id: stri
               variant="secondary"
               successMessage="Criteria proposed — review them below."
             />
-            <MatchRunner donorId={org.id} label="Find matching non-profits" />
+            {org.verified && <MatchRunner donorId={org.id} label="Find matching non-profits" />}
           </>
         }
       />
+
+      {!org.verified && (
+        <div className="mb-6">
+          <Alert tone="info" title="Under review">
+            The Grant Align team is reviewing this organization. Matching opens once it&apos;s verified,
+            usually within a business day. Meanwhile, complete the profile below; it&apos;s what matching
+            uses.
+          </Alert>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr,26rem]">
         <div className="space-y-6">

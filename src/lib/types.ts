@@ -37,6 +37,15 @@ export interface Organization {
   phone: string | null;
   notes: string | null;
   isSeed: boolean;
+  /**
+   * False for an organization a user created at sign-up, until staff review it.
+   * Unverified organizations are kept out of matching in both directions, so a
+   * self-registered "funder" cannot see the non-profits it would be paired with.
+   * Missing on older documents, which were all created by staff: read as true.
+   */
+  verified: boolean;
+  /** Firebase uid of the user who created it through onboarding, if any. */
+  createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +57,10 @@ export interface AppUser {
   name: string | null;
   role: UserRole;
   orgId: string | null;
+  /** Mirrors Firebase Auth's flag; refreshed from Auth until it turns true. */
+  emailVerified: boolean;
+  /** An existing organization this user has asked to join, awaiting staff. */
+  requestedOrgId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

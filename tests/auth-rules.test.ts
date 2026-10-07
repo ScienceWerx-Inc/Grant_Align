@@ -9,7 +9,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { canAccessOrg, canRunFullMatching, homePathFor, orgScope } from '../src/lib/auth-rules';
+import { canAccessOrg, canRunFullMatching, canSelfOnboard, homePathFor, isMatchable, orgScope } from '../src/lib/auth-rules';
 
 const staff = { role: 'STAFF' as const, orgId: null };
 const seeker = { role: 'SEEKER' as const, orgId: 'org-kitchen' };
@@ -63,4 +63,19 @@ test('only staff may run the engine over every pair', () => {
   assert.equal(canRunFullMatching(staff), true);
   assert.equal(canRunFullMatching(seeker), false);
   assert.equal(canRunFullMatching(donor), false);
+});
+
+test('CRITICAL: an unverified organization is never matchable', () => {
+  // A self-registered funder would otherwise see every non-profit it is paired with.
+  assert.equal(isMatchable({ verified: false }), false);
+  assert.equal(isMatchable({ verified: true }), true);
+});
+
+test('only an account with no organization can self-onboard, and never staff', () => {
+  assert.equal(canSelfOnboard(orphan), true);
+  assert.equal(canSelfOnboard({ role: 'DONOR', orgId: null }), true);
+  // CRITICAL: one organization per account; a second would be a way to mint funders.
+  assert.equal(canSelfOnboard(seeker), false);
+  assert.equal(canSelfOnboard(donor), false);
+  assert.equal(canSelfOnboard(staff), false);
 });

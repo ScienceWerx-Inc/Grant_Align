@@ -51,9 +51,17 @@ let auth: Auth | null = null;
 
 export function adminDb(): Firestore {
   if (db) return db;
-  db = getFirestore(adminApp());
-  // Ignore undefined fields so partial updates never throw.
-  db.settings({ ignoreUndefinedProperties: true });
+  // Ignore undefined fields so partial updates never throw. The Firestore
+  // instance is shared per app, and more than one server bundle (pages, server
+  // actions) can reach this module with the app already set up - settings can
+  // only be applied once, so a second caller just takes the configured one.
+  const shared = getFirestore(adminApp());
+  try {
+    shared.settings({ ignoreUndefinedProperties: true });
+  } catch {
+    // Already configured by the first caller.
+  }
+  db = shared;
   return db;
 }
 
