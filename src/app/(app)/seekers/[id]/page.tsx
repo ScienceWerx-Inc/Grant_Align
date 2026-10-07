@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import { getSeekerDetail } from '@/lib/store';
 import { requireOrgAccess } from '@/lib/auth';
 import { Card, Field, NegativeScopePanel, PageHeader, Tags } from '@/components/ui';
 import { InterviewPanel } from '@/components/InterviewPanel';
@@ -25,20 +25,11 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
   // most likely route for one organization's data to reach another.
   
 
-  const org = await prisma.organization.findUnique({
-    where: { id },
-    include: {
-      seekerProfile: true,
-      contacts: { orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }] },
-      compliance: { orderBy: { type: 'asc' } },
-      seekerMatches: { include: { donor: true }, orderBy: { score: 'desc' } },
-      interviews: { where: { role: 'SEEKER' }, orderBy: { updatedAt: 'desc' }, take: 1 },
-    },
-  });
-  if (!org || org.kind !== 'SEEKER') notFound();
+  const org = await getSeekerDetail(id);
+  if (!org) notFound();
 
   const profile = org.seekerProfile;
-  const session = org.interviews[0];
+  const session = org.latestInterview;
   const messages = ((session?.messages as unknown as InterviewMessage[]) ?? []).map(m => ({
     role: m.role,
     content: m.content,
@@ -139,14 +130,14 @@ export default async function SeekerPage({ params }: { params: Promise<{ id: str
 
           <ComplianceCard orgId={org.id} items={org.compliance} />
 
-          <Card title={`Matches (${org.seekerMatches.length})`}>
-            {org.seekerMatches.length === 0 ? (
+          <Card title={`Matches (${org.matches.length})`}>
+            {org.matches.length === 0 ? (
               <p className="field-empty">
                 No funders evaluated yet. Run matching once the profile has substance.
               </p>
             ) : (
               <div className="space-y-2">
-                {org.seekerMatches.map(match => (
+                {org.matches.map(match => (
                   <MatchCard
                     key={match.id}
                     match={match}

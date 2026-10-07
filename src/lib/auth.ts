@@ -1,23 +1,25 @@
 import 'server-only';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
-import { prisma } from '@/lib/db';
-import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { SESSION_COOKIE_NAME } from '@/lib/session';
+import { verifySessionCookie } from '@/lib/firebase-admin';
+import { adminAuth } from '@/lib/firebase-admin';
+import { createAppUser, getAppUser } from '@/lib/store';
 import { canAccessOrg as canAccessOrgRule, homePathFor as homePathForRule, orgScope as orgScopeRule } from '@/lib/auth-rules';
-import type { AppUser, OrgKind, Organization } from '@prisma/client';
+import type { AppUser, Organization, OrgKind } from '@/lib/types';
 
 /**
  * The authorization boundary for the whole application.
  *
- * Supabase answers "who is this?" and this module answers "what may they see?".
- * The split matters because Prisma connects as the database owner and so
- * bypasses row-level security completely: a Postgres RLS policy would have no
- * effect on any query this app makes. Every access decision therefore has to be
- * made here, in code, and every page and route handler must go through one of
- * these helpers rather than querying by an id straight from the URL.
+ * Firebase Auth answers "who is this?" (via the `__session` cookie, minted
+ * from a Firebase ID token) and this module answers "what may they see?".
+ * Firestore has deny-by-default rules and every access decision is made here,
+ * in code. Every page and route handler must go through one of these helpers
+ * rather than querying by an id straight from the URL.
  *
  * The rule the whole model reduces to: STAFF see everything; a SEEKER or DONOR
- * sees exactly one organization, the one their AppUser row points at.
+ * sees exactly one organization, the one their user row points at.
  */
 
 export type SessionUser = AppUser & { org: Organization | null };
@@ -26,34 +28,41 @@ export type SessionUser = AppUser & { org: Organization | null };
  * The signed-in user, or null.
  *
  * Wrapped in React's `cache` so the several calls a single page makes collapse
- * into one Supabase round trip and one database query per request.
+ * into one Auth verification and one Firestore read per request.
  */
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const supabase = await createClient();
+  const cookieStore = await cookies();
+  const session = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  if (!session) return null;
 
-  // getUser() revalidates the token with Supabase. getSession() reads it from a
-  // cookie the client could have forged, so it must never gate authorization.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  let uid: string;
+  let email: string | undefined;
+  try {
+    const verified = await verifySessionCookie(session);
+    uid = verified.uid;
+    email = verified.email;
+  } catch {
+    // Expired, revoked or forged cookie: treat as signed out.
+    return null;
+  }
 
-  const appUser = await prisma.appUser.findUnique({
-    where: { id: user.id },
-    include: { org: true },
-  });
+  const appUser = await getAppUser(uid);
   if (appUser) return appUser;
 
-  // Signed in with Supabase but no profile row yet: the account exists and the
+  // Signed in with Firebase but no profile row yet: the account exists and the
   // onboarding step has not run. Created here so a half-finished sign-up cannot
   // strand someone in a state with no row and no way to make one.
-  return prisma.appUser.create({
-    data: {
-      id: user.id,
-      email: user.email ?? `${user.id}@unknown.local`,
-      name: (user.user_metadata?.name as string | undefined) ?? null,
-    },
-    include: { org: true },
+  if (!email) {
+    try {
+      const record = await adminAuth().getUser(uid);
+      email = record.email;
+    } catch {
+      email = undefined;
+    }
+  }
+  return createAppUser({
+    id: uid,
+    email: email ?? `${uid}@unknown.local`,
   });
 });
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { listSeekerRows } from '@/lib/store';
 import { requireStaff } from '@/lib/auth';
 import { Card, EmptyState, PageHeader } from '@/components/ui';
 import { REQUIRED_COMPLIANCE } from '@/lib/profile-text';
@@ -16,15 +16,7 @@ export default async function SeekersPage() {
   // business reading other non-profits' profiles, nor a funder its peers'.
   
 
-  const seekers = await prisma.organization.findMany({
-    where: { kind: 'SEEKER' },
-    include: {
-      seekerProfile: true,
-      compliance: true,
-      _count: { select: { seekerMatches: true } },
-    },
-    orderBy: { name: 'asc' },
-  });
+  const seekers = await listSeekerRows();
 
   return (
     <>
@@ -71,7 +63,7 @@ export default async function SeekersPage() {
                   <span className="text-caption text-ink-muted">
                     {verified}/{REQUIRED_COMPLIANCE.length} docs
                   </span>
-                  <span className="text-caption text-ink-muted">{org._count.seekerMatches} matches</span>
+                  <span className="text-caption text-ink-muted">{org.matchCount} matches</span>
                 </li>
               );
             })}

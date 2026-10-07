@@ -9,8 +9,8 @@ import { Overline } from '@/components/ui';
  * Previously an uncaught render error showed Next's unstyled default page. It
  * now looks like the rest of the product, and offers the retry that Next
  * already provides - `reset()` re-renders the segment, which is genuinely
- * enough for the transient case this app hits most: a Supabase query that
- * timed out against a one-connection pool.
+ * enough for the transient case this app hits most: a Firestore read that
+ * timed out against a distant database.
  *
  * The message itself is deliberately not shown. It can carry query text and
  * table names, and this boundary catches server errors as well as client ones.

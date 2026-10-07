@@ -11,9 +11,10 @@ import type { NextConfig } from 'next';
  * in development. The RSC payload is unaffected, which is what makes it look
  * like a routing problem rather than a Node one.
  *
- * Nothing in this application uses browser storage: sessions are cookies via
- * @supabase/ssr, and all data is Postgres through Prisma. So the global has no
- * legitimate reader here and removing it is safe.
+ * Nothing in this application uses browser storage: sessions are `__session`
+ * cookies verified with the Firebase Admin SDK, and all data is Firestore
+ * through the Admin SDK. So the global has no legitimate reader here and
+ * removing it is safe.
  *
  * Done here rather than through NODE_OPTIONS=--no-experimental-webstorage
  * because next.config is loaded by the server process on every platform,
@@ -30,7 +31,7 @@ const nextConfig: NextConfig = {
   // Genkit pulls in optional Node-only transports (OpenTelemetry exporters,
   // handlebars) that webpack tries to statically resolve inside route bundles.
   // Keeping them external leaves them as plain Node requires at runtime.
-  serverExternalPackages: ['genkit', '@genkit-ai/google-genai', 'handlebars'],
+  serverExternalPackages: ['genkit', '@genkit-ai/google-genai', 'handlebars', 'firebase-admin'],
 };
 
 export default nextConfig;

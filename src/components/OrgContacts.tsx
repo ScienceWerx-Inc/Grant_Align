@@ -1,6 +1,6 @@
 import { deleteContact, upsertContact } from '@/lib/actions';
 import { Card } from '@/components/ui';
-import type { Contact } from '@prisma/client';
+import type { Contact } from '@/lib/types';
 
 export function OrgContacts({ orgId, contacts }: { orgId: string; contacts: Contact[] }) {
   return (

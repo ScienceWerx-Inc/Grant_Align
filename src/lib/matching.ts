@@ -8,13 +8,15 @@
  * with the reason, so the UI can still show why a donor never appeared.
  */
 
-import { prisma } from '@/lib/db';
+import { listDonorsFull, listSeekersFull, upsertMatch } from '@/lib/store';
 import { renderDonorProfile, renderSeekerProfile, type DonorRecord, type SeekerRecord } from '@/lib/profile-text';
 import { reconcileVerdict, scoreMatch, weightedScore } from '@/ai/flows/scoreMatch';
-import type { MatchVerdict } from '@prisma/client';
+import type { MatchVerdict } from '@/lib/types';
 
 const SEEKER_INCLUDE = { seekerProfile: true, contacts: true, compliance: true } as const;
 const DONOR_INCLUDE = { donorProfile: true, contacts: true } as const;
+void SEEKER_INCLUDE;
+void DONOR_INCLUDE;
 
 export interface RunProgress {
   /** 1-based index of the pair just finished. */
@@ -86,17 +88,17 @@ async function scorePair(seeker: SeekerRecord, donor: DonorRecord): Promise<Pair
     verdict,
     headline: result.headline,
     rationale: result.rationale,
-    dimensions: result.dimensions as unknown as object,
+    dimensions: result.dimensions as unknown as import('@/lib/types').MatchDimension[],
     alignments: result.alignments,
     gaps: result.gaps,
     blockers: result.blockers,
     computedAt: new Date(),
   };
 
-  await prisma.match.upsert({
-    where: { seekerOrgId_donorOrgId: { seekerOrgId: seeker.id, donorOrgId: donor.id } },
-    create: { seekerOrgId: seeker.id, donorOrgId: donor.id, ...data },
-    update: data,
+  await upsertMatch({
+    seekerOrgId: seeker.id,
+    donorOrgId: donor.id,
+    ...data,
   });
 
   return {
@@ -124,17 +126,10 @@ export async function runMatches(
    */
   onProgress?: (progress: RunProgress) => void | Promise<void>,
 ): Promise<PairOutcome[]> {
-  const seekers = (await prisma.organization.findMany({
-    where: { kind: 'SEEKER', ...(opts.seekerId ? { id: opts.seekerId } : {}) },
-    include: SEEKER_INCLUDE,
-    orderBy: { name: 'asc' },
-  })) as SeekerRecord[];
-
-  const donors = (await prisma.organization.findMany({
-    where: { kind: 'DONOR', ...(opts.donorId ? { id: opts.donorId } : {}) },
-    include: DONOR_INCLUDE,
-    orderBy: { name: 'asc' },
-  })) as DonorRecord[];
+  const allSeekers = (await listSeekersFull()) as SeekerRecord[];
+  const allDonors = (await listDonorsFull()) as DonorRecord[];
+  const seekers = opts.seekerId ? allSeekers.filter(s => s.id === opts.seekerId) : allSeekers;
+  const donors = opts.donorId ? allDonors.filter(d => d.id === opts.donorId) : allDonors;
 
   const outcomes: PairOutcome[] = [];
   const total = seekers.length * donors.length;

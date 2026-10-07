@@ -8,7 +8,7 @@
  * the part that most needs tests.
  */
 
-import type { OrgKind, UserRole } from '@prisma/client';
+import type { OrgKind, UserRole } from '@/lib/types';
 
 export interface Principal {
   role: UserRole;

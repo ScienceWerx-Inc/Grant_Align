@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// Grant Align — Firestore rules for project `grant-align`.
+//
+// All data access goes through the Next.js server (Firebase Admin SDK), which
+// bypasses these rules entirely, and authorization is enforced in application
+// code (src/lib/auth.ts). The browser client only uses Firebase Auth, never
+// Firestore directly — so the database stays deny-by-default here. Do NOT open
+// client reads/writes without adding per-user ownership checks.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

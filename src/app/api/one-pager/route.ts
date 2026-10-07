@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { listSeekersFull } from '@/lib/store';
 import { generateOnePager } from '@/ai/flows/onePager';
 import { renderSeekerProfile, type SeekerRecord } from '@/lib/profile-text';
 import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
@@ -24,10 +24,7 @@ export async function POST(request: Request) {
   }
 
 
-  const org = await prisma.organization.findUnique({
-    where: { id: orgId },
-    include: { seekerProfile: true, contacts: true, compliance: true },
-  });
+  const org = (await listSeekersFull()).find(o => o.id === orgId);
   if (!org) return NextResponse.json({ error: 'Organization not found.' }, { status: 404 });
 
   const onePager = await generateOnePager({

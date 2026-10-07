@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { MatchVerdict } from '@prisma/client';
+import type { MatchVerdict } from '@/lib/types';
 import { cn } from '@/lib/cn';
 import {
   IconApply,
@@ -590,8 +590,8 @@ export function BlockerList({ items }: { items: string[] }) {
 /**
  * Skeleton primitives for route-level loading states.
  *
- * Every page here queries Supabase in eu-central-1, so a navigation costs
- * several hundred milliseconds of round trip before anything can render. Next
+ * Every page here reads Firestore in us-east4, so a navigation costs
+ * a round trip before anything can render. Next
  * shows a `loading.tsx` the instant a link is clicked, which turns that gap
  * from an unresponsive page into visible progress - the layout is already
  * correct and only the data is missing.

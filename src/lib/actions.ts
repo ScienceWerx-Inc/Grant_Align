@@ -8,10 +8,25 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { prisma } from '@/lib/db';
+import {
+  clearPrimaryContacts,
+  createContact as storeCreateContact,
+  createDefaultCompliance,
+  createOrganization as storeCreateOrganization,
+  deleteContact as storeDeleteContact,
+  deleteOrganizationCascade,
+  getComplianceItemOrThrow,
+  getContactOrThrow,
+  getResearchRunOrThrow,
+  updateComplianceItem as storeUpdateCompliance,
+  updateOrganization as storeUpdateOrganization,
+  upsertComplianceItem as storeUpsertCompliance,
+  upsertDonorProfile,
+  upsertSeekerProfile,
+} from '@/lib/store';
 import { acceptResearchRun } from '@/lib/donor-refresh';
 import { requireOrgAccess, requireStaff, requireUser } from '@/lib/auth';
-import type { ComplianceStatus, ComplianceType, OrgKind } from '@prisma/client';
+import type { ComplianceStatus, ComplianceType, OrgKind } from '@/lib/types';
 
 function str(form: FormData, key: string): string | null {
   const value = form.get(key);
@@ -54,34 +69,24 @@ export async function createOrganization(kind: OrgKind, form: FormData) {
   const name = str(form, 'name');
   if (!name) throw new Error('An organization name is required.');
 
-  const org = await prisma.organization.create({
-    data: {
-      kind,
-      name,
-      ein: str(form, 'ein'),
-      website: str(form, 'website'),
-      mission: str(form, 'mission'),
-      addressLine: str(form, 'addressLine'),
-      city: str(form, 'city'),
-      state: str(form, 'state'),
-      postalCode: str(form, 'postalCode'),
-      phone: str(form, 'phone'),
-      notes: str(form, 'notes'),
-      ...(kind === 'SEEKER'
-        ? { seekerProfile: { create: {} } }
-        : { donorProfile: { create: {} } }),
-    },
+  const org = await storeCreateOrganization({
+    kind,
+    name,
+    ein: str(form, 'ein'),
+    website: str(form, 'website'),
+    mission: str(form, 'mission'),
+    addressLine: str(form, 'addressLine'),
+    city: str(form, 'city'),
+    state: str(form, 'state'),
+    postalCode: str(form, 'postalCode'),
+    phone: str(form, 'phone'),
+    notes: str(form, 'notes'),
   });
 
   if (kind === 'SEEKER') {
-    // Every local funder asks for these three, so the checklist starts populated
-    // as MISSING rather than empty — an empty list reads as "nothing required".
-    await prisma.complianceItem.createMany({
-      data: (['FORM_990', 'GOOD_STANDING', 'IRS_DETERMINATION'] as ComplianceType[]).map(type => ({
-        orgId: org.id,
-        type,
-      })),
-    });
+    // createOrganization already seeds the profile + default checklist via
+    // the store; this is a no-op safeguard for orgs created before the seed.
+    await createDefaultCompliance(org.id);
   }
 
   const base = kind === 'SEEKER' ? '/seekers' : '/donors';
@@ -100,20 +105,17 @@ export async function createDonor(form: FormData) {
 export async function updateOrganization(orgId: string, form: FormData) {
   await requireOrgAccess(orgId);
 
-  const org = await prisma.organization.update({
-    where: { id: orgId },
-    data: {
-      name: str(form, 'name') ?? undefined,
-      ein: str(form, 'ein'),
-      website: str(form, 'website'),
-      mission: str(form, 'mission'),
-      addressLine: str(form, 'addressLine'),
-      city: str(form, 'city'),
-      state: str(form, 'state'),
-      postalCode: str(form, 'postalCode'),
-      phone: str(form, 'phone'),
-      notes: str(form, 'notes'),
-    },
+  const org = await storeUpdateOrganization(orgId, {
+    name: str(form, 'name') ?? undefined,
+    ein: str(form, 'ein'),
+    website: str(form, 'website'),
+    mission: str(form, 'mission'),
+    addressLine: str(form, 'addressLine'),
+    city: str(form, 'city'),
+    state: str(form, 'state'),
+    postalCode: str(form, 'postalCode'),
+    phone: str(form, 'phone'),
+    notes: str(form, 'notes'),
   });
   revalidatePath(`/${org.kind === 'SEEKER' ? 'seekers' : 'donors'}/${orgId}`);
 }
@@ -126,17 +128,15 @@ export async function upsertContact(orgId: string, form: FormData) {
   const isPrimary = form.get('isPrimary') === 'on';
 
   if (isPrimary) {
-    await prisma.contact.updateMany({ where: { orgId }, data: { isPrimary: false } });
+    await clearPrimaryContacts(orgId);
   }
-  await prisma.contact.create({
-    data: {
-      orgId,
-      name,
-      title: str(form, 'contactTitle'),
-      email: str(form, 'contactEmail'),
-      phone: str(form, 'contactPhone'),
-      isPrimary,
-    },
+  await storeCreateContact({
+    orgId,
+    name,
+    title: str(form, 'contactTitle'),
+    email: str(form, 'contactEmail'),
+    phone: str(form, 'contactPhone'),
+    isPrimary,
   });
   revalidatePath(`/seekers/${orgId}`);
   revalidatePath(`/donors/${orgId}`);
@@ -145,13 +145,10 @@ export async function upsertContact(orgId: string, form: FormData) {
 export async function deleteContact(contactId: string) {
   // Keyed on the contact, not the organization, so the owner has to be looked
   // up before the delete rather than after it.
-  const existing = await prisma.contact.findUniqueOrThrow({
-    where: { id: contactId },
-    select: { orgId: true },
-  });
+  const existing = await getContactOrThrow(contactId);
   await requireOrgAccess(existing.orgId);
 
-  const contact = await prisma.contact.delete({ where: { id: contactId } });
+  const contact = await storeDeleteContact(contactId);
   revalidatePath(`/seekers/${contact.orgId}`);
   revalidatePath(`/donors/${contact.orgId}`);
 }
@@ -159,7 +156,7 @@ export async function deleteContact(contactId: string) {
 export async function updateSeekerProfile(orgId: string, form: FormData) {
   await requireOrgAccess(orgId);
 
-  const data = {
+  await upsertSeekerProfile(orgId, {
     servesWho: str(form, 'servesWho'),
     doesWhat: str(form, 'doesWhat'),
     doesNotDo: str(form, 'doesNotDo'),
@@ -172,11 +169,6 @@ export async function updateSeekerProfile(orgId: string, form: FormData) {
     annualBudget: num(form, 'annualBudget'),
     staffCount: num(form, 'staffCount'),
     volunteerCount: num(form, 'volunteerCount'),
-  };
-  await prisma.seekerProfile.upsert({
-    where: { orgId },
-    create: { orgId, ...data },
-    update: data,
   });
   revalidatePath(`/seekers/${orgId}`);
 }
@@ -185,7 +177,7 @@ export async function updateDonorProfile(orgId: string, form: FormData) {
   await requireOrgAccess(orgId);
 
   const deadline = str(form, 'nextDeadline');
-  const data = {
+  await upsertDonorProfile(orgId, {
     fundingFocus: list(form, 'fundingFocus'),
     excludedSectors: list(form, 'excludedSectors'),
     populationsServed: list(form, 'populationsServed'),
@@ -200,30 +192,19 @@ export async function updateDonorProfile(orgId: string, form: FormData) {
     requires990: form.get('requires990') === 'on',
     requiresGoodStanding: form.get('requiresGoodStanding') === 'on',
     givingNotes: str(form, 'givingNotes'),
-  };
-  await prisma.donorProfile.upsert({
-    where: { orgId },
-    create: { orgId, ...data },
-    update: data,
   });
   revalidatePath(`/donors/${orgId}`);
 }
 
 export async function updateCompliance(itemId: string, form: FormData) {
-  const existing = await prisma.complianceItem.findUniqueOrThrow({
-    where: { id: itemId },
-    select: { orgId: true },
-  });
+  const existing = await getComplianceItemOrThrow(itemId);
   await requireOrgAccess(existing.orgId);
 
-  const item = await prisma.complianceItem.update({
-    where: { id: itemId },
-    data: {
-      status: (str(form, 'status') ?? 'MISSING') as ComplianceStatus,
-      periodLabel: str(form, 'periodLabel'),
-      documentUrl: str(form, 'documentUrl'),
-      notes: str(form, 'notes'),
-    },
+  const item = await storeUpdateCompliance(itemId, {
+    status: (str(form, 'status') ?? 'MISSING') as ComplianceStatus,
+    periodLabel: str(form, 'periodLabel'),
+    documentUrl: str(form, 'documentUrl'),
+    notes: str(form, 'notes'),
   });
   revalidatePath(`/seekers/${item.orgId}`);
 }
@@ -233,20 +214,13 @@ export async function addComplianceItem(orgId: string, form: FormData) {
 
   const type = str(form, 'type') as ComplianceType | null;
   if (!type) throw new Error('A document type is required.');
-  await prisma.complianceItem.upsert({
-    where: { orgId_type: { orgId, type } },
-    create: { orgId, type },
-    update: {},
-  });
+  await storeUpsertCompliance(orgId, type, {});
   revalidatePath(`/seekers/${orgId}`);
 }
 
 /** Accepts a research run's proposed criteria into the live donor profile. */
 export async function acceptResearch(runId: string) {
-  const run = await prisma.researchRun.findUniqueOrThrow({
-    where: { id: runId },
-    select: { orgId: true },
-  });
+  const run = await getResearchRunOrThrow(runId);
   await requireOrgAccess(run.orgId);
 
   const orgId = await acceptResearchRun(runId);
@@ -275,18 +249,10 @@ export async function applyInterviewExtraction(
   if (Object.keys(clean).length === 0 && !complete) return;
 
   if (role === 'SEEKER') {
-    await prisma.seekerProfile.upsert({
-      where: { orgId },
-      create: { orgId, ...clean, interviewComplete: complete },
-      update: { ...clean, ...(complete ? { interviewComplete: true } : {}) },
-    });
+    await upsertSeekerProfile(orgId, { ...clean, ...(complete ? { interviewComplete: true } : {}) });
     revalidatePath(`/seekers/${orgId}`);
   } else {
-    await prisma.donorProfile.upsert({
-      where: { orgId },
-      create: { orgId, ...clean },
-      update: clean,
-    });
+    await upsertDonorProfile(orgId, clean);
     revalidatePath(`/donors/${orgId}`);
   }
 }
@@ -296,7 +262,7 @@ export async function deleteOrganization(orgId: string) {
   // members, so it stays with staff even for one's own organization.
   await requireStaff();
 
-  const org = await prisma.organization.delete({ where: { id: orgId } });
+  const org = await deleteOrganizationCascade(orgId);
   const base = org.kind === 'SEEKER' ? '/seekers' : '/donors';
   revalidatePath(base);
   redirect(base);

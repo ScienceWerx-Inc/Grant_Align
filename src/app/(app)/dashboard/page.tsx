@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { countMatches, countOrganizations, countUnresearchedDonors, getTopMatches, listDonorsFull, listSeekersFull } from '@/lib/store';
 import { Card, EmptyState, PageHeader, SkeletonCard, SkeletonStats, StatTile, VerdictBadge } from '@/components/ui';
 import { REQUIRED_COMPLIANCE } from '@/lib/profile-text';
 import { requireStaff } from '@/lib/auth';
@@ -8,35 +8,17 @@ import { requireStaff } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 /**
- * The dashboard is split into three independently-streamed sections.
- *
- * Every query here is a round trip to Supabase, and `connection_limit=1` -
- * which serverless needs so instances do not exhaust the pooler - makes Prisma
- * serialize them over a single connection. The page therefore costs the SUM of
- * its queries, not the slowest one, and awaiting them all before rendering left
- * it blank for the whole duration.
- *
- * Streaming does not make the queries faster; it makes the page usable while
- * they run. In production, co-located with the database in fra1, the round
- * trips are single-digit milliseconds and this is invisible - it matters most
- * when running against a distant database, which is exactly what development
- * against a hosted Postgres is.
+ * The dashboard is split into three independently-streamed sections so the
+ * page stays usable while Firestore reads resolve.
  */
 
 async function StatsRow() {
-  const [orgCounts, applyCount, unresearched] = await Promise.all([
-    prisma.organization.groupBy({ by: ['kind'], _count: { _all: true } }),
-    prisma.match.count({ where: { verdict: 'APPLY' } }),
-    prisma.organization.count({
-      where: {
-        kind: 'DONOR',
-        OR: [{ donorProfile: null }, { donorProfile: { lastResearchedAt: null } }],
-      },
-    }),
+  const [seekers, donors, applyCount, unresearched] = await Promise.all([
+    countOrganizations('SEEKER'),
+    countOrganizations('DONOR'),
+    countMatches({ verdict: 'APPLY' }),
+    countUnresearchedDonors(),
   ]);
-
-  const seekers = orgCounts.find(row => row.kind === 'SEEKER')?._count._all ?? 0;
-  const donors = orgCounts.find(row => row.kind === 'DONOR')?._count._all ?? 0;
 
   return (
     <div className="grid gap-4 sm:grid-cols-4">
@@ -49,12 +31,7 @@ async function StatsRow() {
 }
 
 async function StrongestMatches() {
-  const topMatches = await prisma.match.findMany({
-    where: { verdict: { in: ['APPLY', 'MAYBE'] } },
-    orderBy: { score: 'desc' },
-    take: 6,
-    include: { seeker: true, donor: true },
-  });
+  const topMatches = await getTopMatches(6);
 
   return (
     <Card title="Strongest matches">
@@ -90,30 +67,18 @@ async function StrongestMatches() {
 }
 
 async function NeedsAttention() {
-  const [incomplete, donorsNeedingWork] = await Promise.all([
-    prisma.organization.findMany({
-      where: {
-        kind: 'SEEKER',
-        OR: [
-          { seekerProfile: null },
-          { seekerProfile: { interviewComplete: false } },
-          { compliance: { some: { type: { in: REQUIRED_COMPLIANCE }, status: { not: 'VERIFIED' } } } },
-        ],
-      },
-      include: { seekerProfile: true, compliance: true },
-      take: 6,
-      orderBy: { name: 'asc' },
-    }),
-    prisma.organization.findMany({
-      where: {
-        kind: 'DONOR',
-        OR: [{ donorProfile: null }, { donorProfile: { fundingFocus: { isEmpty: true } } }],
-      },
-      include: { donorProfile: true },
-      take: 6,
-      orderBy: { name: 'asc' },
-    }),
-  ]);
+  const [seekers, donors] = await Promise.all([listSeekersFull(), listDonorsFull()]);
+  const incomplete = seekers
+    .filter(
+      org =>
+        !org.seekerProfile ||
+        !org.seekerProfile.interviewComplete ||
+        org.compliance.some(c => REQUIRED_COMPLIANCE.includes(c.type) && c.status !== 'VERIFIED'),
+    )
+    .slice(0, 6);
+  const donorsNeedingWork = donors
+    .filter(org => !org.donorProfile || org.donorProfile.fundingFocus.length === 0)
+    .slice(0, 6);
 
   return (
     <Card title="Needs attention">

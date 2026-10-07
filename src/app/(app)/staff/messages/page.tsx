@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db';
+import { listContactMessages } from '@/lib/store';
 import { requireStaff } from '@/lib/auth';
 import { markContactHandled } from '@/lib/contact-actions';
 import { Card, EmptyState, PageHeader, StatusPill } from '@/components/ui';
@@ -17,10 +17,7 @@ export default async function MessagesPage() {
   // seeker or funder organization has any business reading.
   await requireStaff();
 
-  const messages = await prisma.contactMessage.findMany({
-    orderBy: [{ handledAt: 'asc' }, { createdAt: 'desc' }],
-    take: 200,
-  });
+  const messages = await listContactMessages(200);
 
   const open = messages.filter(m => !m.handledAt).length;
 

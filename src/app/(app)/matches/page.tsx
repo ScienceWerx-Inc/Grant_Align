@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { getOrganization, listMatches } from '@/lib/store';
 import { requireUser } from '@/lib/auth';
 import { Card, EmptyState, PageHeader, VerdictBadge } from '@/components/ui';
 import { MatchRunner } from '@/components/MatchRunner';
@@ -28,23 +28,41 @@ export default async function MatchesPage() {
    * A user with no organization yet matches nothing rather than everything.
    */
   const isStaff = user.role === 'STAFF';
-  const donorFilter = user.role === 'DONOR' ? { donorOrgId: user.orgId ?? '__none__' } : {};
+  const donorOrgId = user.role === 'DONOR' ? (user.orgId ?? '__none__') : undefined;
+  const seekerId = user.role === 'SEEKER' ? (user.orgId ?? '__none__') : undefined;
 
-  const seekers = await prisma.organization.findMany({
-    where: {
-      kind: 'SEEKER',
-      seekerMatches: { some: donorFilter },
-      ...(user.role === 'SEEKER' ? { id: user.orgId ?? '__none__' } : {}),
-    },
-    include: {
-      seekerMatches: {
-        where: donorFilter,
-        include: { donor: true },
-        orderBy: { score: 'desc' },
-      },
-    },
-    orderBy: { name: 'asc' },
+  const matches = await listMatches({
+    ...(seekerId ? { seekerOrgId: seekerId } : {}),
+    ...(donorOrgId ? { donorOrgId } : {}),
   });
+
+  // Group by seeker, newest-best first within each group.
+  const bySeeker = new Map<string, typeof matches>();
+  for (const m of matches) {
+    const group = bySeeker.get(m.seekerOrgId) ?? [];
+    group.push(m);
+    bySeeker.set(m.seekerOrgId, group);
+  }
+  const seekers = (
+    await Promise.all(
+      [...bySeeker.entries()].map(async ([id, seekerMatches]) => {
+        const seeker = await getOrganization(id);
+        if (!seeker) return null;
+        const withDonors = (
+          await Promise.all(
+            seekerMatches.map(async match => {
+              const donor = await getOrganization(match.donorOrgId);
+              return donor ? { ...match, donor } : null;
+            }),
+          )
+        ).filter((m): m is typeof seekerMatches[number] & { donor: NonNullable<Awaited<ReturnType<typeof getOrganization>>> } => m !== null);
+        withDonors.sort((a, b) => b.score - a.score);
+        return { ...seeker, seekerMatches: withDonors };
+      }),
+    )
+  )
+    .filter((s): s is NonNullable<typeof s> => s !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const total = seekers.reduce((sum, s) => sum + s.seekerMatches.length, 0);
 

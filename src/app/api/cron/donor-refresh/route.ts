@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { listStaleDonors } from '@/lib/store';
 import { refreshDonor } from '@/lib/donor-refresh';
 import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
 
-// Vercel caps cron invocations; refreshing the stalest few per run and letting
-// the schedule work through the list beats one long job that times out.
+// App Hosting has no built-in cron; refreshing the stalest few per run and
+// letting a Cloud Scheduler job work through the list beats one long job that
+// times out.
 export const maxDuration = 300;
 
 /**
@@ -26,13 +27,13 @@ const BATCH_SIZE = positiveInt(process.env.DONOR_REFRESH_BATCH, 3);
 const STALE_AFTER_DAYS = positiveInt(process.env.DONOR_REFRESH_STALE_DAYS, 14);
 
 /**
- * The scheduled scraper (requirements §2.3). Wired up in vercel.json; the
- * interval is configurable there.
+ * The scheduled scraper (requirements §2.3). Triggered by Cloud Scheduler
+ * (see .env.example); the interval is configured there.
  *
- * Vercel Cron sends a bearer token equal to CRON_SECRET. The check also accepts
- * `?secret=` so the job can be triggered by hand while testing, but only when
- * CRON_SECRET is set — an unauthenticated refresh endpoint is a way to burn
- * someone's model quota.
+ * Cloud Scheduler sends a bearer token equal to CRON_SECRET. The check also
+ * accepts `?secret=` so the job can be triggered by hand while testing, but
+ * only when CRON_SECRET is set — an unauthenticated refresh endpoint is a way
+ * to burn someone's model quota.
  */
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
@@ -51,19 +52,8 @@ async function handle(request: Request) {
   }
 
   const cutoff = new Date(Date.now() - STALE_AFTER_DAYS * 86_400_000);
-  const donors = await prisma.organization.findMany({
-    where: {
-      kind: 'DONOR',
-      OR: [
-        { donorProfile: null },
-        { donorProfile: { lastResearchedAt: null } },
-        { donorProfile: { lastResearchedAt: { lt: cutoff } } },
-      ],
-    },
-    // Never-researched donors sort first: nulls lead on ascending order here.
-    orderBy: { donorProfile: { lastResearchedAt: 'asc' } },
-    take: BATCH_SIZE,
-  });
+  // Never-researched donors sort first (listStaleDonors orders nulls first).
+  const donors = await listStaleDonors(cutoff, BATCH_SIZE);
 
   const results = [];
   for (const donor of donors) {

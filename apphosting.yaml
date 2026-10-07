@@ -1,0 +1,47 @@
+# Firebase App Hosting config for backend `grant-align` (project `grant-align`,
+# region us-east4 — region is set on the backend, not here).
+# Live URL: https://grant-align--grant-align.us-east4.hosted.app
+#
+# The Admin SDK needs no key here: it runs as the backend's compute service
+# account through Application Default Credentials (see src/lib/firebase-admin.ts).
+#
+# To move a key into Secret Manager instead, run
+#   firebase apphosting:secrets:set <NAME> --project grant-align
+# and reference it below with `secret: <NAME>`.
+
+runConfig:
+  cpu: 1
+  memoryMiB: 512
+  minInstances: 0
+  maxInstances: 4
+  concurrency: 80
+
+env:
+  # --- Firebase web app config (public; inlined into the client bundle, so
+  # it must be available at BUILD as well as RUNTIME) ------------------------
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAQZ78qB4F8X7xle5VXqUOeK2_ckarSGYk
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: grant-align.firebaseapp.com
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: grant-align
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:864901308943:web:9a4f9570bdf5129c66397a
+    availability: [BUILD, RUNTIME]
+
+  # --- Server ----------------------------------------------------------------
+  - variable: FIREBASE_PROJECT_ID
+    value: grant-align
+    availability: [RUNTIME]
+  - variable: DONOR_REFRESH_BATCH
+    value: "3"
+    availability: [RUNTIME]
+  - variable: DONOR_REFRESH_STALE_DAYS
+    value: "14"
+    availability: [RUNTIME]
+
+# GEMINI_API_KEY, MISTRAL_API_KEY, CRON_SECRET and AI_PROVIDER are set in the
+# console (backend > Settings > Environment), so they are not declared here.

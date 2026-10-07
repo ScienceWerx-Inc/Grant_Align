@@ -2,14 +2,17 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { firebaseAuth } from '@/lib/firebase';
 import { Alert, Button, FieldShell } from '@/components/ui';
 
 /**
  * Email and password sign-in.
  *
- * Sends people to /handoff rather than a fixed page: where someone belongs
- * depends on their role and organization, which only the server knows.
+ * Signs in with Firebase Auth in the browser, exchanges the ID token for an
+ * `__session` cookie via /api/auth/session, then goes to /handoff — where
+ * someone belongs depends on their role and organization, which only the
+ * server knows.
  */
 export function LoginForm({ next }: { next?: string }) {
   const router = useRouter();
@@ -23,11 +26,17 @@ export function LoginForm({ next }: { next?: string }) {
     setBusy(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (signInError) {
-      setError(signInError.message);
+    try {
+      const cred = await signInWithEmailAndPassword(firebaseAuth(), email, password);
+      const idToken = await cred.user.getIdToken();
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!res.ok) throw new Error('Could not create a session. Try again.');
+    } catch (err) {
+      setError(friendlyMessage(err));
       setBusy(false);
       return;
     }
@@ -70,4 +79,15 @@ export function LoginForm({ next }: { next?: string }) {
       </Button>
     </form>
   );
+}
+
+function friendlyMessage(err: unknown): string {
+  const code = err instanceof Error ? err.message : '';
+  if (code.includes('auth/invalid-credential') || code.includes('auth/user-not-found') || code.includes('auth/wrong-password')) {
+    // Deliberately not distinguishing "no such account" from "wrong password".
+    return 'That email and password do not match an account.';
+  }
+  if (code.includes('auth/too-many-requests')) return 'Too many attempts. Wait a moment and try again.';
+  if (code.includes('auth/network-request-failed')) return 'Network error. Check your connection and try again.';
+  return 'Sign-in failed. Try again.';
 }

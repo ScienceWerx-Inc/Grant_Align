@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { interviewTurn, type InterviewMessage } from '@/ai/flows/interviewer';
+import { createInterviewSession, findLatestInProgressSession, getInterviewSession, getOrgForInterview, updateInterviewSession } from '@/lib/store';
+import { interviewTurn } from '@/ai/flows/interviewer';
+import type { ChatMessage } from '@/lib/types';
 import { applyInterviewExtraction } from '@/lib/actions';
 import { renderDonorProfile, renderSeekerProfile, type DonorRecord, type SeekerRecord } from '@/lib/profile-text';
 import { aiConfigured, AI_KEY_VAR } from '@/ai/providers';
@@ -37,10 +38,7 @@ export async function POST(request: Request) {
   // Page guards do nothing for a route handler: this endpoint is reachable
   // directly with any orgId, so it has to make its own decision.
 
-  const org = await prisma.organization.findUnique({
-    where: { id: body.orgId },
-    include: { seekerProfile: true, donorProfile: true, contacts: true, compliance: true },
-  });
+  const org = await getOrgForInterview(body.orgId);
   if (!org) return NextResponse.json({ error: 'Organization not found.' }, { status: 404 });
 
   const role = org.kind;
@@ -50,17 +48,20 @@ export async function POST(request: Request) {
       : renderDonorProfile(org as unknown as DonorRecord);
 
   let session = body.sessionId
-    ? await prisma.interviewSession.findUnique({ where: { id: body.sessionId } })
-    : await prisma.interviewSession.findFirst({
-        where: { orgId: org.id, role, status: 'IN_PROGRESS' },
-        orderBy: { updatedAt: 'desc' },
-      });
+    ? await getInterviewSession(body.sessionId)
+    : await findLatestInProgressSession(org.id, role);
 
   if (!session) {
-    session = await prisma.interviewSession.create({ data: { orgId: org.id, role } });
+    session = await createInterviewSession(org.id, role);
   }
 
-  const messages = (session.messages as unknown as InterviewMessage[]) ?? [];
+  const stored = (session.messages as unknown as ChatMessage[]) ?? [];
+  // Older sessions may lack timestamps; the interviewer requires them.
+  const messages: ChatMessage[] = stored.map(m => ({
+    role: m.role,
+    content: m.content,
+    at: m.at ?? new Date().toISOString(),
+  }));
   if (body.answer?.trim()) {
     messages.push({ role: 'user', content: body.answer.trim(), at: new Date().toISOString() });
   }
@@ -78,13 +79,10 @@ export async function POST(request: Request) {
   const extracted = (turn.extracted ?? {}) as Record<string, unknown>;
   await applyInterviewExtraction(org.id, role, extracted, turn.done);
 
-  await prisma.interviewSession.update({
-    where: { id: session.id },
-    data: {
-      messages: messages as unknown as object,
-      status: turn.done ? 'COMPLETE' : 'IN_PROGRESS',
-      summary: turn.summary ?? undefined,
-    },
+  await updateInterviewSession(session.id, {
+    messages,
+    status: turn.done ? 'COMPLETE' : 'IN_PROGRESS',
+    summary: turn.summary ?? undefined,
   });
 
   return NextResponse.json({

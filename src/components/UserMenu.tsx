@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { firebaseAuth } from '@/lib/firebase';
 
 const ROLE_LABEL: Record<string, string> = {
   SEEKER: 'Grant seeker',
@@ -24,7 +24,12 @@ export function UserMenu({
 
   async function signOut() {
     setBusy(true);
-    await createClient().auth.signOut();
+    try {
+      await firebaseAuth().signOut();
+    } catch {
+      // Client sign-out is best-effort; the cookie is the real session.
+    }
+    await fetch('/api/auth/session', { method: 'DELETE' }).catch(() => {});
     router.push('/');
     router.refresh();
   }

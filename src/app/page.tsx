@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { countMatches, countOrganizations, countResearchedDonors, topApplyMatch } from '@/lib/store';
 import { WorkflowDiagram } from '@/components/landing/Diagram';
 import { SampleMatch } from '@/components/landing/SampleMatch';
 import { AnimatedCounter } from '@/components/landing/AnimatedCounter';
@@ -9,17 +9,13 @@ export const dynamic = 'force-dynamic';
 
 async function landingData() {
   try {
-    const [donors, researched, seekers, matches, sample] = await Promise.all([
-      prisma.organization.count({ where: { kind: 'DONOR' } }),
-      prisma.donorProfile.count({ where: { lastResearchedAt: { not: null } } }),
-      prisma.organization.count({ where: { kind: 'SEEKER' } }),
-      prisma.match.count(),
-      prisma.match.findFirst({
-        where: { verdict: 'APPLY' },
-        orderBy: { score: 'desc' },
-        include: { seeker: true, donor: true },
-      }),
+    const [donors, seekers, matches, sample] = await Promise.all([
+      countOrganizations('DONOR'),
+      countOrganizations('SEEKER'),
+      countMatches(),
+      topApplyMatch(),
     ]);
+    const researched = await countResearchedDonors().catch(() => 0);
     return { donors, researched, seekers, matches, sample };
   } catch {
     return null;

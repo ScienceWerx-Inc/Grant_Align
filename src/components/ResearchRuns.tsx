@@ -1,6 +1,6 @@
 import { acceptResearch } from '@/lib/actions';
 import { Card } from '@/components/ui';
-import type { ResearchRun } from '@prisma/client';
+import type { ResearchRun } from '@/lib/types';
 
 interface Source {
   title: string;
