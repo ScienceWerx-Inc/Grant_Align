@@ -1,13 +1,15 @@
 # Firebase App Hosting config for backend `grant-align` (project `grant-align`,
-# region us-east4 — region is set on the backend in the console, not here).
+# region us-east4 — region is set on the backend, not here).
+# Live URL: https://grant-align--grant-align.us-east4.hosted.app
 #
-# Secrets (FIREBASE_PRIVATE_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, CRON_SECRET)
-# must be created in the console: App Hosting > backend grant-align >
-# Settings > Secrets, then referenced below via `secret:` instead of inlining.
-# Public NEXT_PUBLIC_* values are safe to set inline under `env`.
+# The Admin SDK needs no key here: it runs as the backend's compute service
+# account through Application Default Credentials (see src/lib/firebase-admin.ts).
+#
+# Secrets live in Cloud Secret Manager. Create/rotate with
+#   firebase apphosting:secrets:set <NAME> --project grant-align
+#   firebase apphosting:secrets:grantaccess <NAME> --backend grant-align --project grant-align
 
 runConfig:
-  # Firestore + Auth are in us-east4 with the backend; keep CPU modest.
   cpu: 1
   memoryMiB: 512
   minInstances: 0
@@ -15,13 +17,42 @@ runConfig:
   concurrency: 80
 
 env:
-  - variable: FIREBASE_PROJECT_ID
-    value: grant-align
+  # --- Firebase web app config (public; inlined into the client bundle, so
+  # it must be available at BUILD as well as RUNTIME) ------------------------
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAQZ78qB4F8X7xle5VXqUOeK2_ckarSGYk
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: grant-align.firebaseapp.com
+    availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: grant-align
-  # Set the rest in the backend's environment / secrets:
-  #   NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  #   NEXT_PUBLIC_FIREBASE_APP_ID,
-  #   FIREBASE_CLIENT_EMAIL (secret), FIREBASE_PRIVATE_KEY (secret),
-  #   GEMINI_API_KEY or MISTRAL_API_KEY (secret), AI_PROVIDER,
-  #   CRON_SECRET (secret), DONOR_REFRESH_BATCH, DONOR_REFRESH_STALE_DAYS
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:864901308943:web:9a4f9570bdf5129c66397a
+    availability: [BUILD, RUNTIME]
+
+  # --- Server ----------------------------------------------------------------
+  - variable: FIREBASE_PROJECT_ID
+    value: grant-align
+    availability: [RUNTIME]
+  - variable: AI_PROVIDER
+    value: mistral
+    availability: [RUNTIME]
+  - variable: DONOR_REFRESH_BATCH
+    value: "3"
+    availability: [RUNTIME]
+  - variable: DONOR_REFRESH_STALE_DAYS
+    value: "14"
+    availability: [RUNTIME]
+
+  # --- Secrets -----------------------------------------------------------------
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+    availability: [RUNTIME]
+  - variable: MISTRAL_API_KEY
+    secret: MISTRAL_API_KEY
+    availability: [RUNTIME]
+  - variable: CRON_SECRET
+    secret: CRON_SECRET
+    availability: [RUNTIME]

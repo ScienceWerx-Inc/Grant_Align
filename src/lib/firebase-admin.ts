@@ -1,12 +1,16 @@
 /**
  * Firebase Admin SDK (server only) — Firestore + Auth.
  *
- * Credentials come from a service account for the `grant-align` project:
+ * On Firebase App Hosting no key is needed: the backend's compute service
+ * account (firebase-app-hosting-compute@) has roles/firebase.sdkAdminServiceAgent
+ * and the SDK picks it up through Application Default Credentials.
+ *
+ * For local dev, use a service account for the `grant-align` project:
  * Project Settings > Service accounts > Generate new private key, then set
  *   FIREBASE_PROJECT_ID=grant-align
  *   FIREBASE_CLIENT_EMAIL=<service-account email>
  *   FIREBASE_PRIVATE_KEY="<private key, \\n newlines preserved>"
- * in the App Hosting backend's environment (and in local .env for dev).
+ * in .env (or run `gcloud auth application-default login` and leave them unset).
  */
 
 import 'server-only';
@@ -31,10 +35,10 @@ function adminApp(): App {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL ?? '';
   const rawKey = process.env.FIREBASE_PRIVATE_KEY ?? '';
   if (!clientEmail || !rawKey) {
-    throw new Error(
-      'Firebase Admin credentials are not set. ' +
-        'Set FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY (service account for project grant-align).',
-    );
+    // No explicit key: fall back to Application Default Credentials (App
+    // Hosting's service account, or `gcloud auth application-default login`).
+    app = initializeApp({ projectId });
+    return app;
   }
   // Private keys are stored with literal \n in env vars; restore real newlines.
   const privateKey = rawKey.includes('\\n') ? rawKey.replace(/\\n/g, '\n') : rawKey;
