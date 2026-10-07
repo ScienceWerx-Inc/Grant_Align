@@ -1,3 +1,4 @@
+import { aiErrorResponse } from '@/ai/errors';
 import { NextResponse } from 'next/server';
 import { listSeekersFull } from '@/lib/store';
 import { generateOnePager } from '@/ai/flows/onePager';
@@ -27,9 +28,13 @@ export async function POST(request: Request) {
   const org = (await listSeekersFull()).find(o => o.id === orgId);
   if (!org) return NextResponse.json({ error: 'Organization not found.' }, { status: 404 });
 
-  const onePager = await generateOnePager({
-    orgName: org.name,
-    profile: renderSeekerProfile(org as unknown as SeekerRecord),
-  });
-  return NextResponse.json(onePager);
+  try {
+    const onePager = await generateOnePager({
+      orgName: org.name,
+      profile: renderSeekerProfile(org as unknown as SeekerRecord),
+    });
+    return NextResponse.json(onePager);
+  } catch (err) {
+    return aiErrorResponse('1-pager generator', err);
+  }
 }

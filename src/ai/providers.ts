@@ -1,6 +1,7 @@
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { openAICompatible } from '@genkit-ai/compat-oai';
+import { env } from '@/lib/env';
 
 /**
  * Single Genkit instance for the app, backed by whichever provider is
@@ -26,17 +27,19 @@ import { openAICompatible } from '@genkit-ai/compat-oai';
 export type AiProvider = 'gemini' | 'mistral';
 
 export const AI_PROVIDER: AiProvider =
-  process.env.AI_PROVIDER === 'mistral' ? 'mistral' : 'gemini';
+  env('AI_PROVIDER')?.toLowerCase() === 'mistral' ? 'mistral' : 'gemini';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+const GEMINI_API_KEY = env('GEMINI_API_KEY') || env('GOOGLE_API_KEY');
+export const MISTRAL_API_KEY = env('MISTRAL_API_KEY');
 
 /** Sensible defaults per provider; both overridable by env. */
 const PROVIDER_DEFAULTS: Record<AiProvider, { fast: string; writing: string }> = {
   // Flash for both by default: Pro frequently has no free-tier quota at all,
   // so defaulting to it makes scoring and the 1-pager the first things to break
   // on a free key. Point GENAI_WRITING_MODEL at Pro on a billed key.
-  gemini: { fast: 'googleai/gemini-2.5-flash', writing: 'googleai/gemini-2.5-flash' },
+  // 2.5 Flash is closed to new API keys ("no longer available to new users"),
+  // so a freshly created free-tier key gets a 404 on it.
+  gemini: { fast: 'googleai/gemini-3.5-flash', writing: 'googleai/gemini-3.5-flash' },
   // Small handles the interview and extraction; the heavier scoring and
   // 1-pager prompts benefit from Medium, which is still on the free tier.
   mistral: { fast: 'mistral/mistral-small-latest', writing: 'mistral/mistral-medium-latest' },
@@ -45,11 +48,11 @@ const PROVIDER_DEFAULTS: Record<AiProvider, { fast: string; writing: string }> =
 const defaults = PROVIDER_DEFAULTS[AI_PROVIDER];
 
 /** Used by prompts that don't name a model of their own. */
-export const DEFAULT_MODEL = process.env.GENAI_MODEL || defaults.fast;
+export const DEFAULT_MODEL = env('GENAI_MODEL') || defaults.fast;
 
 /** Reasoning-heavier calls: match scoring and the one-pager. */
 export const WRITING_MODEL =
-  process.env.GENAI_WRITING_MODEL || process.env.GENAI_MODEL || defaults.writing;
+  env('GENAI_WRITING_MODEL') || env('GENAI_MODEL') || defaults.writing;
 
 export const ai = genkit({
   plugins:

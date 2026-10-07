@@ -1,3 +1,4 @@
+import { env } from '@/lib/env';
 import { NextResponse } from 'next/server';
 import { listStaleDonors } from '@/lib/store';
 import { refreshDonor } from '@/lib/donor-refresh';
@@ -23,8 +24,8 @@ function positiveInt(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
 }
 
-const BATCH_SIZE = positiveInt(process.env.DONOR_REFRESH_BATCH, 3);
-const STALE_AFTER_DAYS = positiveInt(process.env.DONOR_REFRESH_STALE_DAYS, 14);
+const BATCH_SIZE = positiveInt(env('DONOR_REFRESH_BATCH'), 3);
+const STALE_AFTER_DAYS = positiveInt(env('DONOR_REFRESH_STALE_DAYS'), 14);
 
 /**
  * The scheduled scraper (requirements §2.3). Triggered by Cloud Scheduler
@@ -36,7 +37,7 @@ const STALE_AFTER_DAYS = positiveInt(process.env.DONOR_REFRESH_STALE_DAYS, 14);
  * to burn someone's model quota.
  */
 function authorized(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
+  const secret = env('CRON_SECRET');
   if (!secret) return process.env.NODE_ENV !== 'production';
   const header = request.headers.get('authorization');
   if (header === `Bearer ${secret}`) return true;

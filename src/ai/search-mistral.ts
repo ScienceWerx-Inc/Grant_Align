@@ -16,6 +16,7 @@
  * creating one per search would litter it with thousands of identical agents.
  */
 
+import { env } from '@/lib/env';
 import type { GroundedResearch, ResearchSource } from '@/ai/web-research';
 import { withRetry } from '@/ai/retry';
 
@@ -29,7 +30,7 @@ Search the live web and report what you find as plain notes. Name the source for
 
 function headers(): Record<string, string> {
   return {
-    authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+    authorization: `Bearer ${env('MISTRAL_API_KEY')}`,
     'content-type': 'application/json',
   };
 }
@@ -43,7 +44,7 @@ let agentPromise: Promise<string> | null = null;
 async function findOrCreateAgent(): Promise<string> {
   // An explicitly configured agent wins, so a deployment can pin one rather
   // than relying on lookup by name.
-  const pinned = process.env.MISTRAL_SEARCH_AGENT_ID;
+  const pinned = env('MISTRAL_SEARCH_AGENT_ID');
   if (pinned) return pinned;
 
   const list = await fetch(`${API}/agents?page_size=100`, { headers: headers() });
@@ -58,7 +59,7 @@ async function findOrCreateAgent(): Promise<string> {
     method: 'POST',
     headers: headers(),
     body: JSON.stringify({
-      model: process.env.MISTRAL_SEARCH_MODEL || 'mistral-medium-latest',
+      model: env('MISTRAL_SEARCH_MODEL') || 'mistral-medium-latest',
       name: AGENT_NAME,
       description: 'Web research for donor giving criteria.',
       instructions: AGENT_INSTRUCTIONS,

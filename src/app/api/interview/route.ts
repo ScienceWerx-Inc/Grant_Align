@@ -1,3 +1,4 @@
+import { aiErrorResponse } from '@/ai/errors';
 import { NextResponse } from 'next/server';
 import { createInterviewSession, findLatestInProgressSession, getInterviewSession, getOrgForInterview, updateInterviewSession } from '@/lib/store';
 import { interviewTurn } from '@/ai/flows/interviewer';
@@ -66,13 +67,18 @@ export async function POST(request: Request) {
     messages.push({ role: 'user', content: body.answer.trim(), at: new Date().toISOString() });
   }
 
-  const turn = await interviewTurn({
-    role,
-    orgName: org.name,
-    context,
-    messages,
-    extracted: {},
-  });
+  let turn: Awaited<ReturnType<typeof interviewTurn>>;
+  try {
+    turn = await interviewTurn({
+      role,
+      orgName: org.name,
+      context,
+      messages,
+      extracted: {},
+    });
+  } catch (err) {
+    return aiErrorResponse('interviewer', err);
+  }
 
   messages.push({ role: 'assistant', content: turn.reply, at: new Date().toISOString() });
 
