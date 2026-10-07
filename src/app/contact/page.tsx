@@ -23,9 +23,14 @@ export default function ContactPage() {
           <Link href="/" className="inline-flex min-h-[44px] items-center rounded-control text-h4 font-medium tracking-tight text-ink">
             Grant<span className="text-brand-ink">Align</span>
           </Link>
-          <Link href="/login" className="btn-secondary btn-sm">
-            Sign in
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="btn-secondary btn-sm">
+              Sign in
+            </Link>
+            <Link href="/signup" className="btn-primary btn-sm">
+              Sign up
+            </Link>
+          </div>
         </div>
       </header>
 

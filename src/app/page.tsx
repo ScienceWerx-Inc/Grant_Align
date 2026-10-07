@@ -164,9 +164,14 @@ export default function LandingPage() {
             </a>
           ))}
         </nav>
-        <Link href="/login" className="px-6 py-2.5 rounded-pill border border-transparent bg-brand text-brand-on text-body-sm font-semibold hover:bg-brand-hover transition-colors shadow-raised">
-          Sign In
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Link href="/login" className="inline-flex min-h-[44px] items-center px-3 text-body-sm font-semibold text-ink-body hover:text-brand-ink transition-colors">
+            Sign In
+          </Link>
+          <Link href="/signup" className="px-6 py-2.5 rounded-pill border border-transparent bg-brand text-brand-on text-body-sm font-semibold hover:bg-brand-hover transition-colors shadow-raised">
+            Sign Up
+          </Link>
+        </div>
       </header>
 
       {/* 6. HERO SECTION */}
@@ -268,7 +273,7 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/login" className="inline-flex h-[48px] items-center px-8 rounded-pill bg-brand text-brand-on font-semibold hover:bg-brand-hover transition-colors text-body-sm">
+              <Link href="/signup?role=SEEKER" className="inline-flex h-[48px] items-center px-8 rounded-pill bg-brand text-brand-on font-semibold hover:bg-brand-hover transition-colors text-body-sm">
                 Start seeking &rarr;
               </Link>
             </div>
@@ -294,7 +299,7 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/login" className="inline-flex h-[48px] items-center px-8 rounded-pill bg-accent text-accent-on font-semibold hover:opacity-90 transition-opacity text-body-sm">
+              <Link href="/signup?role=DONOR" className="inline-flex h-[48px] items-center px-8 rounded-pill bg-accent text-accent-on font-semibold hover:opacity-90 transition-opacity text-body-sm">
                 Start giving &rarr;
               </Link>
             </div>
@@ -461,9 +466,14 @@ export default function LandingPage() {
             <a href="#engine" className="inline-flex min-h-[44px] items-center hover:text-brand-ink transition-colors">The Engine</a>
             <Link href="/contact" className="inline-flex min-h-[44px] items-center hover:text-brand-ink transition-colors">Contact</Link>
           </nav>
-          <Link href="/login" className="inline-flex min-h-[44px] items-center text-body-sm font-semibold text-brand-ink hover:underline">
-            Sign In
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="/login" className="inline-flex min-h-[44px] items-center text-body-sm font-semibold text-brand-ink hover:underline">
+              Sign In
+            </Link>
+            <Link href="/signup" className="inline-flex min-h-[44px] items-center text-body-sm font-semibold text-brand-ink hover:underline">
+              Sign Up
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

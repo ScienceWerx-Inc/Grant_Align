@@ -7,7 +7,12 @@ import { getSessionUser, homePathFor } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Create an account — Grant Align' };
 
-export default async function SignUpPage() {
+export default async function SignUpPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ role?: string }>;
+}) {
+  const { role } = await searchParams;
   const user = await getSessionUser();
   if (user) redirect(homePathFor(user));
 
@@ -25,7 +30,7 @@ export default async function SignUpPage() {
         </>
       }
     >
-      <SignUpForm />
+      <SignUpForm defaultRole={role === 'DONOR' ? 'DONOR' : 'SEEKER'} />
     </AuthShell>
   );
 }

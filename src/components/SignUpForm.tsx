@@ -16,7 +16,7 @@ import { Alert, Button, FieldShell, RadioCard } from '@/components/ui';
  * `__session` cookie exactly as sign-in does, and the server records the name
  * and the side the person chose.
  */
-export function SignUpForm() {
+export function SignUpForm({ defaultRole = 'SEEKER' }: { defaultRole?: 'SEEKER' | 'DONOR' }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -87,13 +87,14 @@ export function SignUpForm() {
             value="SEEKER"
             label="A non-profit looking for grants"
             description="Build your profile once and see which funders fit."
-            defaultChecked
+            defaultChecked={defaultRole === 'SEEKER'}
           />
           <RadioCard
             name="role"
             value="DONOR"
             label="A funder who gives grants"
             description="Publish your criteria and see the non-profits that match them."
+            defaultChecked={defaultRole === 'DONOR'}
           />
         </div>
       </fieldset>
