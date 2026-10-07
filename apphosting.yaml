@@ -5,9 +5,9 @@
 # The Admin SDK needs no key here: it runs as the backend's compute service
 # account through Application Default Credentials (see src/lib/firebase-admin.ts).
 #
-# Secrets live in Cloud Secret Manager. Create/rotate with
+# To move a key into Secret Manager instead, run
 #   firebase apphosting:secrets:set <NAME> --project grant-align
-#   firebase apphosting:secrets:grantaccess <NAME> --backend grant-align --project grant-align
+# and reference it below with `secret: <NAME>`.
 
 runConfig:
   cpu: 1
@@ -36,9 +36,6 @@ env:
   - variable: FIREBASE_PROJECT_ID
     value: grant-align
     availability: [RUNTIME]
-  - variable: AI_PROVIDER
-    value: mistral
-    availability: [RUNTIME]
   - variable: DONOR_REFRESH_BATCH
     value: "3"
     availability: [RUNTIME]
@@ -46,13 +43,5 @@ env:
     value: "14"
     availability: [RUNTIME]
 
-  # --- Secrets -----------------------------------------------------------------
-  - variable: GEMINI_API_KEY
-    secret: GEMINI_API_KEY
-    availability: [RUNTIME]
-  - variable: MISTRAL_API_KEY
-    secret: MISTRAL_API_KEY
-    availability: [RUNTIME]
-  - variable: CRON_SECRET
-    secret: CRON_SECRET
-    availability: [RUNTIME]
+# GEMINI_API_KEY, MISTRAL_API_KEY, CRON_SECRET and AI_PROVIDER are set in the
+# console (backend > Settings > Environment), so they are not declared here.
