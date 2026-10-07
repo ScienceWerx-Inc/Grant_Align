@@ -24,13 +24,15 @@ import { env } from '@/lib/env';
  * research pipeline behaves the same either way.
  */
 
-export type AiProvider = 'gemini' | 'mistral';
+export type AiProvider = 'gemini' | 'mistral' | 'groq';
 
+const requestedProvider = env('AI_PROVIDER')?.toLowerCase();
 export const AI_PROVIDER: AiProvider =
-  env('AI_PROVIDER')?.toLowerCase() === 'mistral' ? 'mistral' : 'gemini';
+  requestedProvider === 'mistral' || requestedProvider === 'groq' ? requestedProvider : 'gemini';
 
 const GEMINI_API_KEY = env('GEMINI_API_KEY') || env('GOOGLE_API_KEY');
 export const MISTRAL_API_KEY = env('MISTRAL_API_KEY');
+const GROQ_API_KEY = env('GROQ_API_KEY');
 
 /** Sensible defaults per provider; both overridable by env. */
 const PROVIDER_DEFAULTS: Record<AiProvider, { fast: string; writing: string }> = {
@@ -42,6 +44,10 @@ const PROVIDER_DEFAULTS: Record<AiProvider, { fast: string; writing: string }> =
   // Small handles the interview and extraction; the heavier scoring and
   // 1-pager prompts benefit from Medium, which is still on the free tier.
   mistral: { fast: 'mistral/mistral-small-latest', writing: 'mistral/mistral-medium-latest' },
+  // Groq's free tier: ~1,000 requests a day on gpt-oss-120b, against ~20 per
+  // model on free Gemini. No web search on this tier, so donor research uses
+  // only the pages fetched from the funder's own site.
+  groq: { fast: 'groq/openai/gpt-oss-120b', writing: 'groq/openai/gpt-oss-120b' },
 };
 
 const defaults = PROVIDER_DEFAULTS[AI_PROVIDER];
@@ -63,17 +69,30 @@ export const ai = genkit({
             baseURL: 'https://api.mistral.ai/v1',
           }),
         ]
-      : [googleAI({ apiKey: GEMINI_API_KEY })],
+      : AI_PROVIDER === 'groq'
+        ? [
+            openAICompatible({
+              name: 'groq',
+              apiKey: GROQ_API_KEY,
+              baseURL: 'https://api.groq.com/openai/v1',
+            }),
+          ]
+        : [googleAI({ apiKey: GEMINI_API_KEY })],
   // Genkit has no implicit default model; without this, any prompt that omits
   // `model:` throws "Must supply a `model` to `generate()` calls".
   model: DEFAULT_MODEL,
 });
 
 /** Whether the configured provider has a usable key. */
-export const aiConfigured = Boolean(AI_PROVIDER === 'mistral' ? MISTRAL_API_KEY : GEMINI_API_KEY);
+const KEY_VARS: Record<AiProvider, [string, string | undefined]> = {
+  gemini: ['GEMINI_API_KEY', GEMINI_API_KEY],
+  mistral: ['MISTRAL_API_KEY', MISTRAL_API_KEY],
+  groq: ['GROQ_API_KEY', GROQ_API_KEY],
+};
+export const aiConfigured = Boolean(KEY_VARS[AI_PROVIDER][1]);
 
 /** Name of the env var the configured provider needs, for error messages. */
-export const AI_KEY_VAR = AI_PROVIDER === 'mistral' ? 'MISTRAL_API_KEY' : 'GEMINI_API_KEY';
+export const AI_KEY_VAR = KEY_VARS[AI_PROVIDER][0];
 
 /**
  * Whether the configured provider can search the live web.

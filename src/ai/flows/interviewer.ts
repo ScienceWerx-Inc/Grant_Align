@@ -82,7 +82,8 @@ function turnSchema(role: 'SEEKER' | 'DONOR') {
       .describe('Everything established so far, carried forward and refined. Never blank a field already filled.'),
     coverage: z.any().optional().describe('Agenda topics adequately covered so far, as an array of short strings.'),
     done: z.boolean().describe('True only when every required topic has a substantive answer.'),
-    summary: z.string().optional().describe('Written only when done: a 3-5 sentence operational summary.'),
+    // nullish: some models (gpt-oss) send `summary: null` on every unfinished turn.
+    summary: z.string().nullish().describe('Written only when done: a 3-5 sentence operational summary.'),
   });
 }
 
@@ -133,10 +134,24 @@ HOW TO INTERVIEW:
 - Topics 3 and 4 are the ones people skip. Ask them plainly and without apology — negative scope is the most valuable thing you can collect.
 - Extract into the structured fields as you go, and carry forward everything already extracted; never blank a field you previously filled just because this turn did not mention it.
 - Record a topic in \`coverage\` only when you have a substantive answer to it, not merely because you asked.
+- The list-style fields (populations, areas, program areas, focus, exclusions) are YOUR job to fill from what they have already said. Never ask the respondent to restate something as a list or in short phrases.
+- Ask about each agenda topic, not each field. Once every topic has an answer, finish - do not keep asking to polish details.
 - Set \`done\` true only when every agenda topic is covered. Then thank them, say the profile is complete, and write the summary.
 
 WHAT WE ALREADY KNOW (do not re-ask what is already answered here):
 ${context || '(nothing yet)'}`;
+}
+
+/**
+ * After enough answers, tells the model to finish. Some models (gpt-oss on
+ * Groq) otherwise keep asking for one more detail indefinitely; a respondent
+ * who has answered nine questions has given what an interview can get.
+ */
+const WRAP_UP_AFTER = 9;
+function wrapUpNote(messages: InterviewMessage[]): string {
+  const answers = messages.filter(m => m.role === 'user').length;
+  if (answers < WRAP_UP_AFTER) return '';
+  return `\nThe respondent has answered ${answers} questions. Unless a whole agenda topic has never been asked about, set \`done\` true now: thank them, say the profile is complete, and write the summary.\n`;
 }
 
 function renderTranscript(messages: InterviewMessage[]): string {
@@ -169,7 +184,7 @@ ${renderTranscript(messages)}
 
 FIELDS EXTRACTED SO FAR (carry these forward, refine them, do not drop them):
 ${JSON.stringify(extracted, null, 2)}
-
+${wrapUpNote(messages)}
 Produce the next interviewer turn.`,
       output: { schema },
       config: { temperature: 0.6 },
@@ -183,7 +198,7 @@ Produce the next interviewer turn.`,
       extracted: normalize(fieldsFor(role), output.extracted),
       coverage: toTags(output.coverage),
       done: Boolean(output.done),
-      summary: output.summary,
+      summary: output.summary ?? undefined,
     };
   },
 );
